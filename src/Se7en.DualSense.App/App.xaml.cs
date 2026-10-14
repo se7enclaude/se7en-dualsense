@@ -31,6 +31,14 @@ public partial class App : Application
         base.OnStartup(e);
         var args = e.Args;
 
+        // Avant une désinstallation (Seventh OS, désinstalleur) : manette démasquée, démarrage avec Windows retiré,
+        // sans fenêtre. Code de sortie 0 si tout est propre.
+        if (args.Contains("--uninstall-cleanup"))
+        {
+            Shutdown(UninstallCleanup(args));
+            return;
+        }
+
         // Secours : démasquer la manette puis quitter (si elle était restée invisible)
         if (args.Contains("--unhide-all"))
         {
@@ -76,6 +84,29 @@ public partial class App : Application
         // --minimized (démarrage avec Windows) : l'application reste dans la zone de notification
         if (!args.Contains("--minimized"))
             MainWindow.Show();
+    }
+
+    private static int UninstallCleanup(string[] args)
+    {
+        var hidHide = new HidHideService(AppSettings.Directory);
+        // HidHide exige les droits administrateur : une seule invite, et on attend la fin du nettoyage
+        if (hidHide.IsInstalled && !OutputManager.IsElevated && !args.Contains("--no-elevate") && Environment.ProcessPath is { } exe)
+        {
+            try
+            {
+                using var elevated = Process.Start(new ProcessStartInfo(exe, "--uninstall-cleanup --no-elevate") { UseShellExecute = true, Verb = "runas" });
+                elevated?.WaitForExit(60000);
+                return elevated is { HasExited: true } ? elevated.ExitCode : 1;
+            }
+            catch (Win32Exception)
+            {
+                // Élévation refusée : on fait ce qui est possible sans droits
+            }
+        }
+        bool ok = true;
+        try { hidHide.UnhideAll(); } catch { ok = false; }
+        StartupService.Enable(false, out _);
+        return ok ? 0 : 1;
     }
 
     private static bool TryRelaunchElevated(string[] args)

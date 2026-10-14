@@ -1,54 +1,50 @@
-"""Logo de se7en DualSense : tuile encre, « 7 » citron (police Syne du logo), anneau violet.
+"""Logo de se7en DualSense, dans la famille des applis se7en (tuile pleine, gros « 7 ») :
+tuile citron, « 7 » épais encre dessiné à la main, anneau violet (grandes tailles seulement).
 Produit l'icône Windows (.ico multi-tailles) et le logo PNG.
 
 Usage : python tools/make_icon.py src/Se7en.DualSense.App/Assets
 """
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
-INK_TOP, INK = (38, 38, 46), (17, 17, 20)
-VIOLET, LIME = (91, 45, 224), (212, 245, 60)
+LIME_TOP, LIME = (226, 250, 100), (212, 245, 60)
+INK, VIOLET = (17, 17, 20), (91, 45, 224)
 
 
-def logo(size: int, font_path: str) -> Image.Image:
+def seven(d: ImageDraw.ImageDraw, S: int, fill):
+    """« 7 » épais : barre du haut + jambage oblique (proche de celui de se7en Download)."""
+    top, bar, x0, x1, leg, bottom = 0.25 * S, 0.17 * S, 0.24 * S, 0.78 * S, 0.20 * S, 0.79 * S
+    d.polygon([(x0, top), (x1, top), (x1, top + bar * 0.95), (0.52 * S, bottom), (0.52 * S - leg, bottom),
+               (x1 - leg * 1.08, top + bar), (x0, top + bar)], fill=fill)
+
+
+def logo(size: int, ring: bool = True) -> Image.Image:
     S = size * 4  # suréchantillonnage pour des bords nets
     mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, S - 1, S - 1), radius=int(S * 0.23), fill=255)
-
-    # Fond : dégradé vertical encre + reflet doux en haut
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, S - 1, S - 1), radius=int(S * 0.17), fill=255)
     bg = Image.new("RGBA", (S, S))
-    d = ImageDraw.Draw(bg)
+    g = ImageDraw.Draw(bg)
     for y in range(S):
         t = y / S
-        c = tuple(int(INK_TOP[i] + (INK[i] - INK_TOP[i]) * min(1, t * 1.4)) for i in range(3))
-        glow = int(22 * max(0, 1 - t / 0.45) ** 2)
-        d.line([(0, y), (S, y)], fill=tuple(min(255, v + glow) for v in c) + (255,))
+        g.line([(0, y), (S, y)], fill=tuple(int(LIME_TOP[i] + (LIME[i] - LIME_TOP[i]) * t) for i in range(3)) + (255,))
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     img.paste(bg, (0, 0), mask)
-
-    # « 7 »
     d = ImageDraw.Draw(img)
-    f = ImageFont.truetype(font_path, int(S * 0.72))
-    bb = d.textbbox((0, 0), "7", font=f)
-    w, h = bb[2] - bb[0], bb[3] - bb[1]
-    d.text(((S - w) / 2 - bb[0] - S * 0.02, (S - h) / 2 - bb[1]), "7", font=f, fill=LIME + (255,))
-
-    # Anneau violet (signature DualSense de l'application)
-    r, cx, cy = S * 0.058, S * 0.775, S * 0.765
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=VIOLET + (255,), width=int(S * 0.03))
-
-    # Liseré intérieur discret
-    d.rounded_rectangle((2, 2, S - 3, S - 3), radius=int(S * 0.23), outline=(255, 255, 255, 22), width=max(2, S // 160))
+    seven(d, S, INK + (255,))
+    if ring:
+        r, cx, cy = S * 0.055, S * 0.80, S * 0.80
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=VIOLET + (255,), width=int(S * 0.028))
     return img.resize((size, size), Image.LANCZOS)
 
 
 def main():
     out = Path(sys.argv[1])
-    font = str(out / "Fonts" / "Syne-Brand.ttf")
-    big = logo(1024, font)
-    big.save(out / "logo.png")
-    logo(256, font).save(out / "app.ico", sizes=[(16, 16), (20, 20), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    logo(1024).save(out / "logo.png")
+    sizes = [16, 20, 24, 32, 48, 64, 128, 256]
+    # Chaque taille est dessinée à part : l'anneau disparaît sous 64 px, où il deviendrait un point flou
+    frames = [logo(s, ring=s >= 64) for s in sizes]
+    frames[-1].save(out / "app.ico", sizes=[(s, s) for s in sizes], append_images=frames[:-1])
     print("ok")
 
 
