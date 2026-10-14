@@ -56,7 +56,7 @@ Légende : ✅ fait · 🧪 fait, à tester en jeu · ⬜ à faire
 - 🧪 Extinction de la manette en Bluetooth
 - ✅ Exécutable autonome en un seul fichier (`tools/publish.ps1`) · installation en un clic, raccourcis, désinstallation
 - 🧪 Mises à jour automatiques via les publications GitHub (empreinte SHA-256 vérifiée)
-- ⬜ Première publication GitHub (Release) : à décider (le .exe contient la manette 3D dérivée du modèle CC BY)
+- ✅ Première publication GitHub : v0.5.0 (se7en-DualSense.exe)
 
 ---
 
