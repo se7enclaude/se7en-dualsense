@@ -13,6 +13,7 @@
   <ItemGroup>
     <Resource Include="Assets\Fonts\*.ttf" />
     <Resource Include="Assets\Images\*.png" />
+    <Resource Include="Assets\Model\*" />
     <Resource Include="Assets\app.ico" />
   </ItemGroup>
 
@@ -26,6 +27,10 @@
     <ProjectReference Include="..\Se7en.DualSense.Hid\Se7en.DualSense.Hid.csproj" />
     <ProjectReference Include="..\Se7en.DualSense.Output\Se7en.DualSense.Output.csproj" />
     <ProjectReference Include="..\Se7en.DualSense.Processing\Se7en.DualSense.Processing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
 
 </Project>

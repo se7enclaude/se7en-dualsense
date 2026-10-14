@@ -4,9 +4,9 @@ Application Windows pour utiliser une manette PS5 **DualSense** sur PC : lecture
 correction du drift des sticks, et compatibilité avec n'importe quel jeu (émulation DualShock 4 pour
 garder les icônes PlayStation, Xbox 360 en option, ou DualSense native).
 
-> **État** : lecture de la manette, émulation DualShock 4 / Xbox 360 / DualSense native, masquage HidHide,
-> anti-drift (calibration, zones mortes, courbes), remapping, gyroscope, profils par jeu, interface complète.
-> Détail et suite : [ROADMAP.md](ROADMAP.md).
+> **État** (v0.5) : émulation DualShock 4 / Xbox 360 / DualSense native / clavier-souris, masquage HidHide,
+> anti-drift, mappage complet (clavier, souris, macros, couche secondaire, pavé tactile), plusieurs manettes,
+> manette 3D temps réel, exécutable autonome avec mises à jour. Détail et suite : [ROADMAP.md](ROADMAP.md).
 
 ### Droits administrateur
 HidHide (masquage de la vraie manette) exige les droits administrateur : au lancement, l'application se relance
@@ -14,14 +14,21 @@ une fois en administrateur (invite Windows). En cas de refus, tout fonctionne sa
 Si la manette restait invisible après un arrêt brutal : `se7en DualSense.exe --unhide-all`.
 
 ## Fonctionnalités
-- **Jouer** : DualShock 4 virtuelle (icônes PlayStation), Xbox 360 ou DualSense native, en un clic ; la vraie manette est masquée (HidHide).
-- **Anti-drift** : calibration guidée du centre et de l'amplitude, zones mortes radiales, anti-zone morte, courbes, détection automatique du drift.
+- **Jouer** : DualShock 4 virtuelle (icônes PlayStation), Xbox 360, DualSense native ou **clavier / souris**, en un clic ; la vraie manette est masquée (HidHide).
+- **Plusieurs manettes** en même temps (jusqu'à 4), chacune avec sa manette virtuelle et sa LED joueur.
+- **Anti-drift** : calibration guidée du centre et de l'amplitude, zones mortes radiales, anti-zone morte, courbes, détection automatique du drift, **historique de l'usure** jour après jour.
 - **Gâchettes** : zones mortes, tout-ou-rien, gâchettes adaptatives (résistance, point dur, vibration).
-- **Mappage** : réattribution de chaque bouton, turbo. **Gyroscope** : visée par inclinaison.
-- **Profils par jeu** : bibliothèque Steam / Epic / Rockstar détectée, bascule automatique au lancement d'un jeu, import / export.
-- **Retours** : vibrations du jeu (intensité réglable), barre lumineuse (jeu, personnalisée, batterie), LED joueur.
-- **Confort** : icône près de l'horloge, démarrage avec Windows, overlay en jeu, navigation à la manette, thème clair / sombre.
-- **Diagnostic** : circularité des sticks, course des gâchettes, fréquence, rapport brut.
+- **Mappage** : chaque bouton → autre bouton, **touche du clavier**, **clic / molette**, **macro** ou **action système** ; **couche secondaire** (un bouton maintenu change tout), turbo, **pavé tactile** en zones cliquables, gestes de glissement ou souris, **sticks en souris / molette / ZQSD**.
+- **Macros** enregistrées en jouant la séquence sur la manette (une fois, en boucle ou en bascule).
+- **Raccourcis PS + bouton** : volume, média, capture d'écran, profil suivant, mode bureau, extinction… (un appui court sur PS reste transmis au jeu).
+- **Bouton micro** relié au micro de Windows (LED orange quand il est coupé).
+- **Gyroscope** : visée par inclinaison.
+- **Profils par jeu** : bibliothèque Steam / Epic / Rockstar détectée, bascule automatique au lancement d'un jeu, import / export, profil « Bureau Windows ».
+- **Retours** : vibrations du jeu (intensité réglable), **vibrations générées depuis le son**, barre lumineuse (jeu, personnalisée, batterie), LED joueur.
+- **Batterie** : alerte à 20 % puis 10 %, **extinction de la manette en Bluetooth** (PS + Options).
+- **Interface** : manette **3D temps réel** (suit les mouvements de la vraie manette, chaque commande bouge, barre lumineuse en direct), couleurs d'accent, thème clair / sombre, animations.
+- **Confort** : icône près de l'horloge, démarrage avec Windows, overlay en jeu, navigation à la manette, installation en un clic, **mises à jour automatiques** (publications GitHub).
+- **Diagnostic** : circularité des sticks, course des gâchettes, fréquence, historique du drift, rapport brut.
 
 Raccourcis : Ctrl + 1…9 pour les onglets, Échap pour fermer une fenêtre. Options : `--skip-intro`, `--minimized`, `--page=sticks`.
 
@@ -30,6 +37,17 @@ Raccourcis : Ctrl + 1…9 pour les onglets, Échap pour fermer une fenêtre. Opt
 - [SDK .NET 8](https://dotnet.microsoft.com/download/dotnet/8.0) ou plus récent pour compiler
 - À partir de la phase 2 : [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) et
   [HidHide](https://github.com/nefarius/HidHide/releases) (l'application proposera de les installer)
+
+## Exécutable autonome
+```bash
+powershell -ExecutionPolicy Bypass -File tools/publish.ps1
+```
+Produit `publish/se7en DualSense.exe` : un seul fichier, sans .NET à installer. Au premier lancement, l'assistant
+propose de l'installer (dossier Programmes de l'utilisateur, raccourcis Bureau et menu Démarrer).
+
+Mises à jour : l'application interroge les publications GitHub du dépôt (au plus une fois par jour) et propose
+d'installer un `.exe` plus récent. Le script affiche l'empreinte SHA-256 à indiquer dans les notes de la publication
+(« SHA-256 : … ») pour que l'application la vérifie avant de remplacer l'exécutable.
 
 ## Compiler et lancer
 ```bash
@@ -48,10 +66,13 @@ dotnet run --project src/Se7en.DualSense.App -- --demo
 ```
 Autres options : `--skip-intro` (ouvre directement le tableau de bord), `--demo-all` (toutes les touches simulées enfoncées).
 
-## Image de la manette (non incluse)
-L'accueil affiche un **rendu 3D** de la DualSense, réalisé dans Blender à partir du modèle
-« Playstation 5 Dualsense » de AHarmlessPotato (Sketchfab, CC BY 4.0). Le modèle et les rendus ne sont
-pas versionnés ; sans eux, l'application fonctionne mais affiche un message à la place de la manette.
+## Manette 3D (non incluse)
+L'accueil affiche la DualSense **en 3D temps réel**, à partir du modèle « Playstation 5 Dualsense » de
+AHarmlessPotato (Sketchfab, CC BY 4.0) : pièces mobiles séparées et éclairage studio cuit dans une texture
+(`tools/controller-3d`, Blender 4+). Le résultat (`Assets/Model`) n'est pas versionné ; sans lui, l'accueil
+utilise le rendu 2D ci-dessous, et sans images non plus, un message remplace la manette.
+
+### Rendu 2D (secours)
 
 Pour les régénérer :
 1. Télécharger le modèle (format GLB) depuis Sketchfab et l'ouvrir dans Blender, caméra de face
@@ -71,11 +92,11 @@ src/Se7en.DualSense.Processing/   Traitement : calibration, zones mortes, courbe
 src/Se7en.DualSense.Output/       Sortie : DS4 / Xbox 360 virtuelles (ViGEm), HidHide, pilotes, profils, bibliothèque
 src/Se7en.DualSense.App/          Interface WPF (thème Axis, accueil animé)
 tests/Se7en.DualSense.Tests/      Tests unitaires (dotnet test)
-tools/                            Scripts : détourage de la photo, conversion des polices et des icônes
+tools/                            Scripts : publication, manette 3D (Blender), détourage, polices, icônes
 ```
 
 ## Licences
-Code du projet : à définir. Composants tiers (HidSharp, icônes Lucide, polices OFL) : voir
+Code du projet : à définir. Composants tiers (HidSharp, NAudio, ViGEm, icônes Lucide, polices OFL) : voir
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 « PlayStation », « DualSense » et « DualShock » sont des marques de Sony Interactive Entertainment.

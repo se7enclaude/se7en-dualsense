@@ -33,6 +33,10 @@ public sealed class OutputManager : IDisposable
     private FeedbackSettings _feedback = new();
     private GameFeedback? _lastGame;
     private int _battery = 100;
+    private bool _micMuted;
+    private byte _audioHeavy, _audioLight;
+    private readonly KeyboardMouseEmitter _emitter = new();
+    private volatile bool _emitActions;
 
     public OutputManager(DualSenseConnection connection, HidHideService hidHide, OutputMode initialMode)
     {
@@ -44,6 +48,33 @@ public sealed class OutputManager : IDisposable
 
     public event Action<OutputStatus>? StatusChanged;
     public event Action<string>? Log;
+    /// <summary>Action système déclenchée par la manette (thread d'E/S).</summary>
+    public event Action<SystemAction>? SystemActionTriggered;
+
+    /// <summary>LED joueur imposée (plusieurs manettes : 1, 2, 3, 4), sinon celle du profil.</summary>
+    public int? PlayerNumberOverride
+    {
+        get => _playerOverride;
+        set { _playerOverride = value; ComposeOutput(); }
+    }
+    private int? _playerOverride;
+
+    /// <summary>LED du bouton micro : allumée quand le micro de Windows est coupé.</summary>
+    public void SetMicrophoneMuted(bool muted)
+    {
+        if (muted == _micMuted) return;
+        _micMuted = muted;
+        ComposeOutput();
+    }
+
+    /// <summary>Vibrations générées depuis le son (0-255 par moteur), combinées à celles du jeu.</summary>
+    public void SetAudioRumble(byte heavy, byte light)
+    {
+        if (heavy == _audioHeavy && light == _audioLight) return;
+        _audioHeavy = heavy;
+        _audioLight = light;
+        ComposeOutput();
+    }
 
     public OutputMode Mode => _mode;
 
@@ -109,12 +140,13 @@ public sealed class OutputManager : IDisposable
 
         var output = new DualSenseOutputState
         {
-            HeavyMotor = (byte)Math.Clamp((game?.HeavyMotor ?? 0) * k, 0, 255),
-            LightMotor = (byte)Math.Clamp((game?.LightMotor ?? 0) * k, 0, 255),
+            HeavyMotor = (byte)Math.Max(Math.Clamp((game?.HeavyMotor ?? 0) * k, 0, 255), _audioHeavy),
+            LightMotor = (byte)Math.Max(Math.Clamp((game?.LightMotor ?? 0) * k, 0, 255), _audioLight),
+            MuteLed = _micMuted,
             LightbarRed = (byte)(r * br),
             LightbarGreen = (byte)(g * br),
             LightbarBlue = (byte)(b * br),
-            PlayerLeds = f.PlayerNumber switch { 2 => 0x0A, 3 => 0x15, 4 => 0x1B, _ => 0x04 },
+            PlayerLeds = (_playerOverride ?? f.PlayerNumber) switch { 2 => 0x0A, 3 => 0x15, 4 => 0x1B, _ => 0x04 },
             LeftTrigger = f.LeftTrigger.ToEffect(),
             RightTrigger = f.RightTrigger.ToEffect(),
         };
@@ -135,10 +167,7 @@ public sealed class OutputManager : IDisposable
     public void Start()
     {
         if (_hidHide.IsInstalled && IsElevated)
-        {
-            _hidHide.RecoverFromJournal();
-            _hidHideReady = _hidHide.RegisterSelf();
-        }
+            _hidHideReady = _hidHide.EnsureSessionReady();
 
         try
         {
@@ -178,7 +207,16 @@ public sealed class OutputManager : IDisposable
             var mode = _mode;
             string message;
 
-            if (mode.IsVirtual() && device != null && _client != null)
+            if (mode == OutputMode.KeyboardMouse && device != null)
+            {
+                DisposePad();
+                _connection.OutputEnabled = true;
+                bool hidden = HideDevice(device);
+                message = hidden
+                    ? "La manette pilote le clavier et la souris ; les jeux ne la voient plus."
+                    : "La manette pilote le clavier et la souris. Sans HidHide, les jeux la voient aussi.";
+            }
+            else if (mode.IsVirtual() && device != null && _client != null)
             {
                 if (_pad?.Mode != mode)
                 {
@@ -189,10 +227,7 @@ public sealed class OutputManager : IDisposable
                 }
                 _connection.OutputEnabled = true;
 
-                string instance = HidHideService.ToInstanceId(device.DevicePath);
-                if (_hiddenInstance != null && !string.Equals(_hiddenInstance, instance, StringComparison.OrdinalIgnoreCase))
-                    UnhideCurrent();
-                bool hidden = _hidHideReady && (_hiddenInstance != null || TryHide(instance));
+                bool hidden = HideDevice(device);
 
                 message = hidden
                     ? $"Les jeux voient une manette {mode.Label()}."
@@ -213,6 +248,8 @@ public sealed class OutputManager : IDisposable
                         : "En attente de la manette.";
             }
 
+            _emitActions = mode != OutputMode.Native && device != null;
+            if (!_emitActions) _emitter.ReleaseAll();
             Status = new OutputStatus(mode, _pad != null, _hiddenInstance != null, message);
             StatusChanged?.Invoke(Status);
         }
@@ -224,6 +261,14 @@ public sealed class OutputManager : IDisposable
         {
             _applyGate.Release();
         }
+    }
+
+    private bool HideDevice(DualSenseDeviceInfo device)
+    {
+        string instance = HidHideService.ToInstanceId(device.DevicePath);
+        if (_hiddenInstance != null && !string.Equals(_hiddenInstance, instance, StringComparison.OrdinalIgnoreCase))
+            UnhideCurrent();
+        return _hidHideReady && (_hiddenInstance != null || TryHide(instance));
     }
 
     private IVirtualPad CreatePad(OutputMode mode)
@@ -262,8 +307,18 @@ public sealed class OutputManager : IDisposable
     private void OnState(in DualSenseState state)
     {
         Calibration.Add(state);
-        Processor.Process(state, out var processed);
+        var actions = default(ActionFrame);
+        Processor.Process(state, out var processed, ref actions);
         lock (_snapshotLock) _lastProcessed = processed;
+
+        if (_emitActions)
+            _emitter.Apply(actions);
+        if (actions.SystemTriggered != 0 && SystemActionTriggered is { } handler)
+        {
+            for (int i = 0; i < 64; i++)
+                if ((actions.SystemTriggered & (1UL << i)) != 0)
+                    handler((SystemAction)i);
+        }
 
         var pad = _pad;
         if (pad == null) return;
@@ -298,6 +353,8 @@ public sealed class OutputManager : IDisposable
         if (_disposed) return;
         _disposed = true;
         _connection.StateReceived -= OnState;
+        _emitActions = false;
+        try { _emitter.ReleaseAll(); } catch { /* fermeture */ }
         _applyGate.Wait(3000);
         try
         {

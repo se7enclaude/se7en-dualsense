@@ -63,6 +63,23 @@ public sealed class HidHideService
         return p.Replace('#', '\\').ToUpperInvariant();
     }
 
+    private bool? _sessionReady;
+
+    /// <summary>
+    /// Une seule fois par session (même avec plusieurs manettes) : démasque les restes d'une session
+    /// interrompue puis autorise notre exécutable. Renvoie true si le masquage est utilisable.
+    /// </summary>
+    public bool EnsureSessionReady()
+    {
+        lock (_lock)
+        {
+            if (_sessionReady is bool ready) return ready;
+            RecoverFromJournal();
+            _sessionReady = RegisterSelf();
+            return _sessionReady.Value;
+        }
+    }
+
     /// <summary>Démasque tout ce que le journal contient (reste d'une session précédente).</summary>
     public void RecoverFromJournal()
     {

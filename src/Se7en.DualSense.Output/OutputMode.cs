@@ -9,6 +9,8 @@ public enum OutputMode
     Xbox360,
     /// <summary>DualSense réelle exposée telle quelle (gâchettes adaptatives, haptique) ; aucun traitement.</summary>
     Native,
+    /// <summary>Aucune manette pour les jeux : la DualSense pilote le clavier et la souris (bureau, jeux sans manette).</summary>
+    KeyboardMouse,
 }
 
 public static class OutputModeExtensions
@@ -17,10 +19,15 @@ public static class OutputModeExtensions
     {
         OutputMode.DualShock4 => "DualShock 4",
         OutputMode.Xbox360 => "Xbox 360",
+        OutputMode.KeyboardMouse => "Clavier / souris",
         _ => "DualSense native",
     };
 
-    public static bool IsVirtual(this OutputMode mode) => mode != OutputMode.Native;
+    /// <summary>Une manette virtuelle est présentée aux jeux.</summary>
+    public static bool IsVirtual(this OutputMode mode) => mode is OutputMode.DualShock4 or OutputMode.Xbox360;
+
+    /// <summary>La vraie DualSense est masquée aux jeux (tous les modes sauf natif).</summary>
+    public static bool HidesDevice(this OutputMode mode) => mode != OutputMode.Native;
 }
 
 /// <summary>Retour envoyé par le jeu à la manette virtuelle.</summary>

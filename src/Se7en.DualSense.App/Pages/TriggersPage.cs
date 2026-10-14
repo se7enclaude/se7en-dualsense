@@ -26,14 +26,14 @@ public sealed class TriggersPage : UserControl, ILivePage
 
     private void ApplyProcessing(ProcessingSettings p)
     {
-        App.Controller.Output.Processor.Settings = p;
+        App.Controller.PreviewProcessing(p);
         var profile = Profile with { Processing = p };
         _save.Run(() => App.Controller.UpdateProfile(profile));
     }
 
     private void ApplyFeedback(FeedbackSettings f)
     {
-        App.Controller.Output.SetFeedback(f);
+        App.Controller.PreviewFeedback(f);
         var profile = Profile with { Feedback = f };
         _save.Run(() => App.Controller.UpdateProfile(profile));
     }

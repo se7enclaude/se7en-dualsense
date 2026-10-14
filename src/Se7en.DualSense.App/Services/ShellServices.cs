@@ -15,10 +15,10 @@ public static class StartupService
 {
     private const string TaskName = "se7en DualSense";
 
-    public static bool Enable(bool enable, out string error)
+    public static bool Enable(bool enable, out string error, string? exePath = null)
     {
         error = "";
-        string? exe = Environment.ProcessPath;
+        string? exe = exePath ?? Environment.ProcessPath;
         if (exe == null) { error = "Chemin de l'application introuvable."; return false; }
 
         var args = enable
@@ -75,16 +75,21 @@ public sealed class TrayService : IDisposable
         var menu = _icon.ContextMenuStrip!;
         menu.Items.Clear();
         var c = App.Controller;
-        var device = c.Device;
-        var state = c.Connection.Latest;
-        string status = device == null ? "Aucune manette" :
-            $"{device.DisplayName} · {device.ConnectionLabel}" + (state.IsFullReport ? $" · {state.BatteryPercent} %" : "");
-        menu.Items.Add(new Forms.ToolStripMenuItem(status) { Enabled = false });
+        var slots = c.Slots;
+        foreach (var slot in slots)
+        {
+            var device = slot.Device;
+            var state = slot.Connection.Latest;
+            string prefix = slots.Count > 1 ? slot.Label + " · " : "";
+            string status = device == null ? prefix + "Aucune manette" :
+                prefix + $"{device.DisplayName} · {device.ConnectionLabel}" + (state.IsFullReport ? $" · {state.BatteryPercent} %" : "");
+            menu.Items.Add(new Forms.ToolStripMenuItem(status) { Enabled = false });
+        }
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Ouvrir se7en DualSense", null, (_, _) => _open());
 
         var modes = new Forms.ToolStripMenuItem("Les jeux voient");
-        foreach (var mode in new[] { OutputMode.DualShock4, OutputMode.Xbox360, OutputMode.Native })
+        foreach (var mode in new[] { OutputMode.DualShock4, OutputMode.Xbox360, OutputMode.Native, OutputMode.KeyboardMouse })
         {
             var m = mode;
             modes.DropDownItems.Add(new Forms.ToolStripMenuItem(m.Label(), null, (_, _) => c.SetOutputMode(m)) { Checked = c.ActiveProfile.Mode == m });
@@ -98,8 +103,36 @@ public sealed class TrayService : IDisposable
             profiles.DropDownItems.Add(new Forms.ToolStripMenuItem(p.Name, null, (_, _) => c.SelectProfile(profile)) { Checked = c.ActiveProfile.Id == p.Id });
         }
         menu.Items.Add(profiles);
+        menu.Items.Add(new Forms.ToolStripMenuItem("Mode bureau (clavier / souris)", null, (_, _) => c.ToggleDesktopMode())
+        {
+            Checked = c.ActiveProfile.Id == Profile.DesktopId,
+        });
+        if (slots.Any(s => s.Device?.Connection == Se7en.DualSense.Hid.ConnectionType.Bluetooth))
+        {
+            var off = new Forms.ToolStripMenuItem("Éteindre la manette");
+            foreach (var slot in slots.Where(s => s.Device?.Connection == Se7en.DualSense.Hid.ConnectionType.Bluetooth))
+            {
+                var target = slot;
+                off.DropDownItems.Add(slots.Count > 1 ? slot.Label : "DualSense", null, (_, _) => c.PowerOff(target));
+            }
+            if (off.DropDownItems.Count == 1)
+            {
+                var single = off.DropDownItems[0];
+                off = new Forms.ToolStripMenuItem("Éteindre la manette", null, (_, _) => single.PerformClick());
+            }
+            menu.Items.Add(off);
+        }
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quitter", null, (_, _) => _quit());
+    }
+
+    /// <summary>Notification Windows (bulle), visible même quand la fenêtre est masquée.</summary>
+    public void ShowBalloon(string title, string text, bool warning)
+    {
+        _icon.BalloonTipTitle = title;
+        _icon.BalloonTipText = text;
+        _icon.BalloonTipIcon = warning ? Forms.ToolTipIcon.Warning : Forms.ToolTipIcon.Info;
+        _icon.ShowBalloonTip(5000);
     }
 
     /// <summary>Infobulle de l'icône (63 caractères max).</summary>

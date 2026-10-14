@@ -73,6 +73,23 @@ public sealed class DiagnosticPage : UserControl, ILivePage
         grid.Children.Add(circCard);
         root.Children.Add(grid);
 
+        // ── Historique de l'usure ──
+        var history = new StackPanel();
+        var hhead = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        var legend = new StackPanel { Orientation = Orientation.Horizontal };
+        legend.Children.Add(LegendDot("Accent", "Stick gauche"));
+        legend.Children.Add(LegendDot("Ink", "Stick droit"));
+        legend.Children.Add(LegendDot("Danger", "Zone morte par défaut", dashed: true));
+        DockPanel.SetDock(legend, Dock.Right);
+        hhead.Children.Add(legend);
+        hhead.Children.Add(Ui.Text("HISTORIQUE DU DRIFT", "Text.Overline"));
+        history.Children.Add(hhead);
+        _historyCaption = Ui.Text("", "Text.Caption", new Thickness(0, 0, 0, 14));
+        history.Children.Add(_historyCaption);
+        history.Children.Add(_history);
+        root.Children.Add(Ui.Card(history, new Thickness(0, 16, 0, 0), 20));
+        Loaded += (_, _) => RefreshHistory();
+
         // ── Rapport brut ──
         var raw = new StackPanel();
         raw.Children.Add(Ui.Text("RAPPORT BRUT", "Text.Overline", new Thickness(0, 0, 0, 10)));
@@ -83,6 +100,29 @@ public sealed class DiagnosticPage : UserControl, ILivePage
         root.Children.Add(Ui.Card(raw, new Thickness(0, 16, 0, 0), 20));
 
         Content = root;
+    }
+
+    private readonly DriftHistoryChart _history = new() { Height = 200 };
+    private TextBlock _historyCaption = null!;
+
+    private void RefreshHistory()
+    {
+        var days = DriftHistory.Get(App.Controller.Device?.Identity);
+        _history.SetData(days);
+        _historyCaption.Text = days.Count == 0
+            ? "Décalage moyen de chaque stick au repos, jour après jour (valeurs brutes, avant calibration). Les mesures se font toutes seules quand la manette est posée : revenez dans quelques jours."
+            : $"Décalage moyen au repos, avant calibration · {days.Count} jour(s) suivis depuis le {days[0].Date:dd/MM/yyyy}. " +
+              "Une courbe qui monte révèle une usure ; au-dessus de la ligne rouge, calibrez ou augmentez la zone morte.";
+    }
+
+    private static StackPanel LegendDot(string brush, string label, bool dashed = false)
+    {
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(16, 0, 0, 0) };
+        var line = new System.Windows.Shapes.Rectangle { Width = 14, Height = dashed ? 1.5 : 3, RadiusX = 1.5, RadiusY = 1.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        line.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, brush);
+        sp.Children.Add(line);
+        sp.Children.Add(Ui.Text(label, "Text.Caption"));
+        return sp;
     }
 
     private static StackPanel Plot(CircularityPlot plot, string label, TextBlock score)

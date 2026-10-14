@@ -65,6 +65,13 @@ public sealed class GamesPage : UserControl
         head.Children.Add(Ui.Text("PROFILS", "Text.Overline"));
         left.Children.Add(head);
         left.Children.Add(_list);
+        if (App.Controller.Profiles.Find(Profile.DesktopId) == null)
+            left.Children.Add(Ui.Button("+ Profil « Bureau Windows »", "Button.Secondary", (_, _) =>
+            {
+                App.Controller.Profiles.Save(Profile.CreateDesktop());
+                _selectedId = Profile.DesktopId;
+                Build();
+            }, new Thickness(0, 12, 0, 0)).With(b => b.ToolTip = "La manette devient clavier + souris : stick droit = curseur, ✕ = clic… (aussi avec PS + □)"));
         grid.Children.Add(Ui.Card(left, null, 16));
 
         Grid.SetColumn(_editor, 2);
@@ -155,7 +162,7 @@ public sealed class GamesPage : UserControl
         root.Children.Add(name);
 
         root.Children.Add(Ui.Text("LES JEUX VOIENT", "Text.Overline", new Thickness(0, 0, 0, 8)));
-        root.Children.Add(Ui.Segmented(new[] { "DualShock 4", "Xbox 360", "DualSense native" }, (int)p.Mode,
+        root.Children.Add(Ui.Segmented(new[] { "DualShock 4", "Xbox 360", "DualSense native", "Clavier / souris" }, (int)p.Mode,
             i => App.Controller.UpdateProfile(Selected! with { Mode = (OutputMode)i })));
 
         root.Children.Add(Ui.Text("JEUX ASSOCIÉS", "Text.Overline", new Thickness(0, 22, 0, 8)));

@@ -20,6 +20,9 @@ public partial class App : Application
     /// <summary>Option --skip-intro : ouvre directement le tableau de bord.</summary>
     public static bool SkipIntro { get; private set; }
 
+    /// <summary>Suspend la navigation à la manette (enregistrement d'une macro, capture d'une touche).</summary>
+    public static bool SuspendControllerNavigation { get; set; }
+
     /// <summary>Vrai si l'utilisateur a refusé l'élévation : le masquage HidHide est alors indisponible.</summary>
     public static bool ElevationDeclined { get; private set; }
 
@@ -61,6 +64,9 @@ public partial class App : Application
 
         if (AppSettings.Current.Theme != AppTheme.Light)
             ThemeManager.Apply(AppSettings.Current.Theme);
+        else
+            ThemeManager.ApplyAccent();
+        UpdateService.CleanupPreviousVersion();
 
         Controller = new ControllerService();
         Controller.Start();

@@ -14,3 +14,6 @@ __pycache__/
 *.gltf
 *.blend
 *.blend1
+
+# Manette 3D temps réel (dérivée du modèle CC BY, générée par tools/controller-3d)
+src/Se7en.DualSense.App/Assets/Model/

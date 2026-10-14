@@ -49,11 +49,25 @@ public sealed class StickVisualizer : LiveVisual
         set => SetValue(DeadzoneProperty, value);
     }
 
+    // Traînée : dernières positions, qui s'estompent en ~0,35 s
+    private readonly (double X, double Y, double T)[] _trail = new (double, double, double)[18];
+    private int _trailHead, _trailCount;
+    private static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+    private const double TrailSeconds = 0.35;
+
     /// <summary>Position normalisée, -1..1, Y vers le bas.</summary>
     public void SetPosition(double x, double y)
     {
+        double now = Clock.Elapsed.TotalSeconds;
+        bool fading = _trailCount > 0 && now - _trail[(_trailHead + _trail.Length - 1) % _trail.Length].T < TrailSeconds;
         if (Math.Abs(x - _x) < 0.0005 && Math.Abs(y - _y) < 0.0005)
+        {
+            if (fading) InvalidateVisual();
             return;
+        }
+        _trail[_trailHead] = (_x, _y, now);
+        _trailHead = (_trailHead + 1) % _trail.Length;
+        _trailCount = Math.Min(_trailCount + 1, _trail.Length);
         _x = x;
         _y = y;
         InvalidateVisual();
@@ -89,6 +103,18 @@ public sealed class StickVisualizer : LiveVisual
         double mag = Math.Sqrt(_x * _x + _y * _y);
         bool idle = mag <= Math.Max(Deadzone, 0.02);
         var dotColor = idle ? Color.FromRgb(0x9A, 0xA0, 0xAE) : accent;
+
+        // Traînée du mouvement (points de plus en plus petits et transparents)
+        double t = Clock.Elapsed.TotalSeconds;
+        for (int i = 0; i < _trailCount; i++)
+        {
+            var (tx, ty, tt) = _trail[(_trailHead - 1 - i + _trail.Length * 2) % _trail.Length];
+            double age = (t - tt) / TrailSeconds;
+            if (age >= 1) continue;
+            var tp = new Point(c.X + tx * travel, c.Y + ty * travel);
+            byte alpha = (byte)(110 * (1 - age));
+            dc.DrawEllipse(Frozen(Color.FromArgb(alpha, accent.R, accent.G, accent.B)), null, tp, 7 * (1 - age * 0.6), 7 * (1 - age * 0.6));
+        }
 
         dc.DrawEllipse(null, new Pen(Res("Border.Default"), 1), p, 22, 22);
         if (!idle)

@@ -18,6 +18,16 @@ public enum LightbarMode
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
+public enum AudioRumbleMode
+{
+    Off,
+    /// <summary>Basses uniquement (explosions, moteurs, musique).</summary>
+    Bass,
+    /// <summary>Tout le son : basses → gros moteur, médiums → petit moteur.</summary>
+    Full,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum TriggerEffectKind
 {
     Off,
@@ -59,6 +69,9 @@ public sealed record FeedbackSettings
     public int PlayerNumber { get; init; } = 1;
     public TriggerEffectSettings LeftTrigger { get; init; } = new();
     public TriggerEffectSettings RightTrigger { get; init; } = new();
+    /// <summary>Vibrations générées depuis le son de Windows (utile pour les jeux sans vibrations).</summary>
+    public AudioRumbleMode AudioRumble { get; init; } = AudioRumbleMode.Off;
+    public double AudioRumbleIntensity { get; init; } = 1;
 }
 
 /// <summary>Profil : un réglage complet, éventuellement associé à des jeux (exécutables).</summary>
@@ -73,8 +86,46 @@ public sealed record Profile
     public FeedbackSettings Feedback { get; init; } = new();
 
     public const string DefaultId = "default";
+    public const string DesktopId = "desktop";
 
     public static Profile CreateDefault() => new() { Id = DefaultId, Name = "Par défaut" };
+
+    /// <summary>
+    /// Profil « Bureau Windows » : la manette devient clavier + souris (stick droit = curseur,
+    /// stick gauche = molette, R2 / ✕ = clic gauche, L2 / ○ = clic droit, pavé tactile = souris…).
+    /// </summary>
+    public static Profile CreateDesktop() => new()
+    {
+        Id = DesktopId,
+        Name = "Bureau Windows",
+        Mode = OutputMode.KeyboardMouse,
+        Processing = new ProcessingSettings
+        {
+            RightStick = new StickSettings { InnerDeadzone = 0.1, Curve = CurveType.Smooth },
+            LeftStick = new StickSettings { InnerDeadzone = 0.15 },
+            Mouse = new MouseSettings { RightStick = StickRole.Mouse, LeftStick = StickRole.Scroll, Speed = 1 },
+            Touchpad = new TouchpadSettings { Mode = TouchpadMode.Mouse },
+            Actions = new Dictionary<DualSenseButtons, InputAction>
+            {
+                [DualSenseButtons.Cross] = InputAction.ForMouse(MouseAction.LeftClick),
+                [DualSenseButtons.R2] = InputAction.ForMouse(MouseAction.LeftClick),
+                [DualSenseButtons.Circle] = InputAction.ForMouse(MouseAction.RightClick),
+                [DualSenseButtons.L2] = InputAction.ForMouse(MouseAction.RightClick),
+                [DualSenseButtons.Square] = InputAction.ForKeys(0x0D),          // Entrée
+                [DualSenseButtons.Triangle] = InputAction.ForKeys(0x1B),        // Échap
+                [DualSenseButtons.DpadUp] = InputAction.ForKeys(0x26),
+                [DualSenseButtons.DpadDown] = InputAction.ForKeys(0x28),
+                [DualSenseButtons.DpadLeft] = InputAction.ForKeys(0x25),
+                [DualSenseButtons.DpadRight] = InputAction.ForKeys(0x27),
+                [DualSenseButtons.L1] = InputAction.ForMouse(MouseAction.Back),
+                [DualSenseButtons.R1] = InputAction.ForMouse(MouseAction.Forward),
+                [DualSenseButtons.Options] = InputAction.ForKeys(0x5B),         // Windows
+                [DualSenseButtons.Create] = InputAction.ForKeys(0x5B, 0x09),    // Windows + Tab
+                [DualSenseButtons.R3] = InputAction.ForMouse(MouseAction.MiddleClick),
+                [DualSenseButtons.L3] = InputAction.ForKeys(0x5B, 0xA2, 0x4F),  // Win + Ctrl + O : clavier visuel
+            },
+        },
+    };
 
     public bool IsDefault => Id == DefaultId;
 }

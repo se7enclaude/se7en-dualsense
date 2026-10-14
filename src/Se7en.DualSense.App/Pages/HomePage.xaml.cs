@@ -20,6 +20,8 @@ public partial class HomePage : UserControl, ILivePage
     private DualSenseButtons _lastButtons = (DualSenseButtons)uint.MaxValue;
     private bool _syncingMode;
     private DriverBannerAction _bannerAction;
+    private readonly Controller3DView? _view3D;
+    private readonly DualSenseView? _view2D;
 
     private enum DriverBannerAction { None, Install, Elevate, Restart }
 
@@ -29,6 +31,18 @@ public partial class HomePage : UserControl, ILivePage
     public HomePage()
     {
         InitializeComponent();
+        // Manette 3D temps réel si le modèle est présent, sinon le rendu 2D
+        var view3D = new Controller3DView();
+        if (view3D.IsAvailable)
+        {
+            _view3D = view3D;
+            ControllerHost.Content = view3D;
+        }
+        else
+        {
+            _view2D = new DualSenseView { ShowInputOverlays = false, IsHitTestVisible = false };
+            ControllerHost.Content = _view2D;
+        }
         BuildButtonGlyphs();
         DemoBadge.Visibility = ControllerService.IsDemo ? Visibility.Visible : Visibility.Collapsed;
         SyncModeSelector(App.Controller?.ActiveProfile.Mode ?? OutputMode.DualShock4);
@@ -40,7 +54,7 @@ public partial class HomePage : UserControl, ILivePage
     private void OnModeChecked(object sender, RoutedEventArgs e)
     {
         if (_syncingMode || App.Controller == null) return;
-        var mode = sender == ModeXbox ? OutputMode.Xbox360 : sender == ModeNative ? OutputMode.Native : OutputMode.DualShock4;
+        var mode = sender == ModeXbox ? OutputMode.Xbox360 : sender == ModeNative ? OutputMode.Native : sender == ModeKbm ? OutputMode.KeyboardMouse : OutputMode.DualShock4;
         App.Controller.SetOutputMode(mode);
         ModeMessage.Text = "Changement de mode…";
     }
@@ -48,17 +62,18 @@ public partial class HomePage : UserControl, ILivePage
     private void SyncModeSelector(OutputMode mode)
     {
         _syncingMode = true;
-        (mode switch { OutputMode.Xbox360 => ModeXbox, OutputMode.Native => ModeNative, _ => ModeDs4 }).IsChecked = true;
+        (mode switch { OutputMode.Xbox360 => ModeXbox, OutputMode.Native => ModeNative, OutputMode.KeyboardMouse => ModeKbm, _ => ModeDs4 }).IsChecked = true;
         _syncingMode = false;
         OutputBadge.Text = mode.Label();
-        ModeStat.Text = mode switch { OutputMode.Xbox360 => "XBOX 360", OutputMode.Native => "NATIVE", _ => "DS4" };
+        ModeStat.Text = mode switch { OutputMode.Xbox360 => "XBOX 360", OutputMode.Native => "NATIVE", OutputMode.KeyboardMouse => "CLAVIER", _ => "DS4" };
     }
 
     public void OnOutputStatus(OutputStatus status)
     {
         SyncModeSelector(status.Mode);
         ModeMessage.Text = status.Message;
-        bool warn = status.Mode == OutputMode.Native || (status.Mode.IsVirtual() && status.PadActive && !status.DeviceHidden);
+        bool warn = status.Mode == OutputMode.Native || (status.Mode.IsVirtual() && status.PadActive && !status.DeviceHidden)
+                    || (status.Mode == OutputMode.KeyboardMouse && !status.DeviceHidden);
         ModeMessage.SetResourceReference(TextBlock.ForegroundProperty, warn ? "Warning.Text" : "Text.Secondary");
     }
 
@@ -271,7 +286,8 @@ public partial class HomePage : UserControl, ILivePage
 
     public void Update(in FrameData frame)
     {
-        Controller.Update(frame);
+        _view3D?.Update(frame);
+        _view2D?.Update(frame);
 
         var s = frame.State;
         if (!frame.IsConnected)

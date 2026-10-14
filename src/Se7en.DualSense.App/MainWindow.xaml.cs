@@ -85,7 +85,21 @@ public partial class MainWindow : Window, IShell
         c.Log += _home.ShowLog;
         c.ActiveProfileChanged += OnProfileChanged;
         c.ProfileUpdated += OnProfileChanged;
-        c.Notify += (title, message, kind) => { if (AppSettings.Current.NotifyOnConnect) Toast(title, message, kind); };
+        c.Notify += (title, message, kind) => { if (AppSettings.Current.NotifyOnConnect || kind == NotifyKind.Warning) Toast(title, message, kind); };
+        c.ControllersChanged += RefreshSlotChips;
+        c.ShowAppRequested += ShowFromTray;
+        c.OverlayToggleRequested += () =>
+        {
+            AppSettings.Current.ShowOverlay = !AppSettings.Current.ShowOverlay;
+            AppSettings.Save();
+            UpdateOverlay();
+        };
+        c.BatteryLow += (slot, level) =>
+        {
+            // Bulle Windows : visible même en jeu ou fenêtre fermée
+            if (!IsActive) _tray?.ShowBalloon($"Batterie faible · {level} %", (c.Slots.Count > 1 ? slot.Label : "DualSense") + " : pensez à la recharger.", true);
+        };
+        RefreshSlotChips();
         OnDeviceChanged(c.Device);
         OnProfileChanged(c.ActiveProfile);
 
@@ -98,6 +112,35 @@ public partial class MainWindow : Window, IShell
         if (App.StartPage != null)
             Dispatcher.BeginInvoke(() => Navigate(App.StartPage), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         UpdateOverlay();
+        if (!ControllerService.IsDemo)
+            Loaded += async (_, _) =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(8));
+                var update = await UpdateService.CheckInBackgroundAsync();
+                if (update != null && ModalHost.Visibility != Visibility.Visible)
+                    UpdateDialog.Show(this, update);
+            };
+    }
+
+    /// <summary>Plusieurs manettes : une pastille par manette pour choisir celle affichée.</summary>
+    private void RefreshSlotChips()
+    {
+        var slots = App.Controller.Slots;
+        SlotChips.Children.Clear();
+        SlotChips.Visibility = slots.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        if (slots.Count < 2) return;
+        foreach (var slot in slots)
+        {
+            var s = slot;
+            var chip = new RadioButton
+            {
+                Content = (s.Index + 1).ToString(), GroupName = "Slots", IsChecked = s == App.Controller.Selected,
+                ToolTip = s.Label + (s.Device != null ? " · " + s.Device.ConnectionLabel : " · déconnectée"), Margin = new Thickness(0, 0, 4, 4),
+            };
+            chip.SetResourceReference(StyleProperty, "Segment");
+            chip.Checked += (_, _) => App.Controller.SelectSlot(s);
+            SlotChips.Children.Add(chip);
+        }
     }
 
     // ───────────── Navigation ─────────────
@@ -152,10 +195,25 @@ public partial class MainWindow : Window, IShell
         PageHost.Content = page;
         PageScroll.ScrollToTop();
 
-        // Transition : fondu + léger glissement vers le haut, sans rebond
+        // Transition : fondu, puis chaque bloc de la page arrive en cascade (léger glissement vers le haut)
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        PageHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
-        PageShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(260)) { EasingFunction = ease });
+        PageHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160)) { EasingFunction = ease });
+        PageShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(6, 0, TimeSpan.FromMilliseconds(260)) { EasingFunction = ease });
+        if ((page as UserControl)?.Content is Panel blocks)
+        {
+            int i = 0;
+            foreach (UIElement block in blocks.Children)
+            {
+                if (block.Visibility != Visibility.Visible) continue;
+                if (i > 7) break;
+                var delay = TimeSpan.FromMilliseconds(40 * i++);
+                var shift = block.RenderTransform as TranslateTransform ?? new TranslateTransform();
+                block.RenderTransform = shift;
+                block.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(260)) { BeginTime = delay, EasingFunction = ease, FillBehavior = FillBehavior.Stop });
+                block.Opacity = 1;
+                shift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(16, 0, TimeSpan.FromMilliseconds(340)) { BeginTime = delay, EasingFunction = ease });
+            }
+        }
 
         foreach (var (button, target) in new[] { (RailGames, "games"), (RailSticks, "sticks"), (RailMapping, "mapping") })
             button.SetResourceReference(ForegroundProperty, key == target ? "Text.Primary" : "Text.Tertiary");
@@ -254,11 +312,16 @@ public partial class MainWindow : Window, IShell
             DeviceBattery.SetLevel(frame.State.BatteryPercent, frame.State.Charging == ChargingState.Charging);
 
         // Navigation à la manette (jamais en mode démo : les appuis simulés changeraient d'onglet)
-        if (frame.IsConnected && IsActive && AppSettings.Current.ControllerNavigation && !ControllerService.IsDemo)
+        if (frame.IsConnected && IsActive && AppSettings.Current.ControllerNavigation && !ControllerService.IsDemo && !App.SuspendControllerNavigation)
             HandleControllerNavigation(frame.State.Buttons);
 
         if (++_statusTick % 30 == 0)
+        {
             RefreshStatusText(frame);
+            // Accent « barre lumineuse » : l'interface suit la couleur envoyée à la manette
+            if (frame.IsConnected && ThemeManager.AccentKey == "lightbar")
+                ThemeManager.SetLiveColor(Color.FromRgb(frame.Output.LightbarRed, frame.Output.LightbarGreen, frame.Output.LightbarBlue));
+        }
     }
 
     /// <summary>Croix : déplacer le focus · ✕ : valider · ○ : retour · L1/R1 : onglet précédent/suivant.</summary>
@@ -338,6 +401,8 @@ public partial class MainWindow : Window, IShell
         var p = App.Controller.ActiveProfile;
         string battery = frame.IsConnected && frame.State.IsFullReport ? $"{frame.State.BatteryPercent} %" : "—";
         string text = frame.IsConnected ? $"DualSense {battery} · {p.Name} · {p.Mode.Label()}" : "Aucune manette";
+        if (App.Controller.Slots.Count > 1)
+            text = string.Join("  ", App.Controller.Slots.Select(s => $"{s.Index + 1}: " + (s.Device != null && s.Connection.Latest.IsFullReport ? s.Connection.Latest.BatteryPercent + " %" : "—"))) + $" · {p.Name}";
         _tray?.SetTooltip("se7en · " + text);
         _overlay?.SetText(text);
     }

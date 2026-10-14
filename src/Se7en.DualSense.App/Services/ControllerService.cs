@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Se7en.DualSense.Hid;
 using Se7en.DualSense.Output;
 using Se7en.DualSense.Processing;
@@ -13,28 +14,65 @@ public enum NotifyKind
     Warning,
 }
 
+/// <summary>Une manette branchée : sa connexion, sa sortie vers les jeux, son suivi (batterie, usure).</summary>
+public sealed class ControllerSlot : IDisposable
+{
+    public ControllerSlot(int index, HidHideService hidHide, OutputMode mode)
+    {
+        Index = index;
+        Output = new OutputManager(Connection, hidHide, mode);
+    }
+
+    public int Index { get; set; }
+    public DualSenseConnection Connection { get; } = new();
+    public OutputManager Output { get; }
+    public DualSenseDeviceInfo? Device => Connection.Device;
+
+    /// <summary>Usure : décalage brut au repos (sans calibration), pour l'historique.</summary>
+    public DriftDetector RawDrift { get; } = new();
+
+    internal DualSenseDeviceInfo? LastDevice;
+    internal long LastReportCount = -1;
+    internal int BatteryAlertLevel = 100;
+    internal int LastDriftEvaluation;
+    internal DateTime DisconnectedSince = DateTime.MaxValue;
+
+    public string Label => $"Manette {Index + 1}";
+
+    public void Dispose()
+    {
+        Output.Dispose();
+        Connection.Dispose();
+    }
+}
+
 /// <summary>
-/// Pont entre le thread d'E/S de la manette et l'interface, et chef d'orchestre des profils.
+/// Pont entre les threads d'E/S des manettes et l'interface, et chef d'orchestre des profils.
 /// Le thread HID n'est jamais bloqué par l'UI : l'interface lit un instantané à chaque image.
+/// Plusieurs manettes : une « place » par manette ; l'interface affiche la manette sélectionnée.
 /// </summary>
 public sealed class ControllerService : IDisposable
 {
-    private readonly DualSenseConnection _connection = new();
-    private DualSenseDeviceInfo? _lastDevice;
-    private long _lastReportCount = -1;
+    private readonly List<ControllerSlot> _slots = new();
+    private ControllerSlot _selected;
     private ProcessWatcher? _watcher;
     private string? _gameExe;
+    private Timer? _slotTimer;
+    private readonly DispatcherTimer _micTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
+    private readonly AudioRumbleService _audio = new();
+    private bool? _micMuted;
+    private string? _profileBeforeDesktop;
 
     public ControllerService()
     {
-        _connection.Log += msg => OnUi(() => Log?.Invoke(msg));
         HidHide = new HidHideService(AppSettings.Directory);
         Profiles = new ProfileStore(AppSettings.Directory);
         ActiveProfile = Profiles.Find(AppSettings.Current.SelectedProfileId) ?? Profiles.Default;
-
-        Output = new OutputManager(_connection, HidHide, ActiveProfile.Mode);
-        Output.Log += msg => OnUi(() => Log?.Invoke(msg));
-        Output.StatusChanged += status => OnUi(() => OutputStatusChanged?.Invoke(status));
+        _selected = AddSlot(start: false);
+        _audio.Levels += (heavy, light) =>
+        {
+            foreach (var slot in Slots) slot.Output.SetAudioRumble(heavy, light);
+        };
         ApplyProfileSettings(ActiveProfile);
     }
 
@@ -43,10 +81,20 @@ public sealed class ControllerService : IDisposable
     // ───────────── Accès ─────────────
 
     public HidHideService HidHide { get; }
-    public OutputManager Output { get; }
     public ProfileStore Profiles { get; }
-    public DualSenseConnection Connection => _connection;
-    public DualSenseDeviceInfo? Device => _connection.Device;
+
+    /// <summary>Toutes les manettes (au moins une place, même sans manette branchée).</summary>
+    public IReadOnlyList<ControllerSlot> Slots
+    {
+        get { lock (_slots) return _slots.ToList(); }
+    }
+
+    public ControllerSlot Selected => _selected;
+
+    /// <summary>Sortie de la manette sélectionnée.</summary>
+    public OutputManager Output => _selected.Output;
+    public DualSenseConnection Connection => _selected.Connection;
+    public DualSenseDeviceInfo? Device => _selected.Connection.Device;
 
     /// <summary>Profil appliqué en ce moment (celui d'un jeu détecté, sinon celui choisi).</summary>
     public Profile ActiveProfile { get; private set; }
@@ -54,10 +102,15 @@ public sealed class ControllerService : IDisposable
     /// <summary>Nom de l'exécutable du jeu qui a activé le profil, sinon null.</summary>
     public string? ActiveGame => _gameExe;
 
+    /// <summary>État du micro de Windows (null : aucun micro).</summary>
+    public bool? MicrophoneMuted => _micMuted;
+
     // ───────────── Événements (thread UI) ─────────────
 
     public event Action<FrameData>? Frame;
     public event Action<DualSenseDeviceInfo?>? DeviceChanged;
+    /// <summary>Une manette apparaît ou disparaît, ou la sélection change.</summary>
+    public event Action? ControllersChanged;
     public event Action<OutputStatus>? OutputStatusChanged;
     /// <summary>Un autre profil devient actif (choix manuel ou jeu détecté) : les pages se reconstruisent.</summary>
     public event Action<Profile>? ActiveProfileChanged;
@@ -66,17 +119,102 @@ public sealed class ControllerService : IDisposable
     public event Action<string>? Log;
     /// <summary>Notification courte à afficher (titre, détail, type).</summary>
     public event Action<string, string, NotifyKind>? Notify;
+    /// <summary>Raccourci PS + △ : afficher la fenêtre.</summary>
+    public event Action? ShowAppRequested;
+    /// <summary>Raccourci PS + pavé : afficher / masquer l'overlay.</summary>
+    public event Action? OverlayToggleRequested;
+    public event Action<bool?>? MicrophoneChanged;
 
     public void Start()
     {
-        _connection.Start();
+        ApplyGlobalOptions();
+        _selected.Connection.Start();
         if (!IsDemo)
         {
-            Output.Start();
+            _selected.Output.Start();
             _watcher = new ProcessWatcher(Profiles);
             _watcher.GameChanged += (profile, exe) => OnUi(() => OnGameChanged(profile, exe));
+            // Nouvelle manette branchée : une place de plus (vérification toutes les 2 s)
+            _slotTimer = new Timer(_ => CheckForNewControllers(), null, 2000, 2000);
+            _micTimer.Tick += (_, _) => PollMicrophone();
+            _micTimer.Start();
+            PollMicrophone();
         }
         CompositionTarget.Rendering += OnRendering;
+    }
+
+    // ───────────── Plusieurs manettes ─────────────
+
+    private ControllerSlot AddSlot(bool start)
+    {
+        ControllerSlot slot;
+        lock (_slots)
+        {
+            slot = new ControllerSlot(_slots.Count, HidHide, ActiveProfile.Mode);
+            _slots.Add(slot);
+        }
+        slot.Connection.Log += msg => OnUi(() => Log?.Invoke(msg));
+        slot.Output.Log += msg => OnUi(() => Log?.Invoke(msg));
+        slot.Output.StatusChanged += status => OnUi(() => { if (slot == _selected) OutputStatusChanged?.Invoke(status); });
+        slot.Output.SystemActionTriggered += action => OnUi(() => OnSystemAction(slot, action));
+        slot.Output.Processor.Settings = ActiveProfile.Processing;
+        slot.Output.SetFeedback(ActiveProfile.Feedback);
+        if (start)
+        {
+            ApplyGlobalOptions();
+            slot.Connection.Start();
+            slot.Output.Start();
+            UpdatePlayerLeds();
+        }
+        return slot;
+    }
+
+    private void CheckForNewControllers()
+    {
+        try
+        {
+            var slots = Slots;
+            if (slots.All(s => s.Device != null) && DualSenseConnection.CountUnclaimed() > 0)
+                OnUi(() =>
+                {
+                    if (Slots.All(s => s.Device != null) && Slots.Count < 4)
+                    {
+                        AddSlot(start: true);
+                        ControllersChanged?.Invoke();
+                    }
+                });
+        }
+        catch { /* énumération momentanément indisponible */ }
+    }
+
+    public void SelectSlot(ControllerSlot slot)
+    {
+        if (slot == _selected || !Slots.Contains(slot)) return;
+        _selected = slot;
+        _selected.LastDevice = null; // déclenche DeviceChanged à la prochaine image
+        _selected.LastReportCount = -1;
+        OutputStatusChanged?.Invoke(_selected.Output.Status);
+        ControllersChanged?.Invoke();
+    }
+
+    private void RemoveSlot(ControllerSlot slot)
+    {
+        lock (_slots)
+        {
+            if (slot.Index == 0 || !_slots.Remove(slot)) return;
+            for (int i = 0; i < _slots.Count; i++) _slots[i].Index = i;
+        }
+        if (_selected == slot) _selected = _slots[0];
+        slot.Dispose();
+        UpdatePlayerLeds();
+        ControllersChanged?.Invoke();
+    }
+
+    private void UpdatePlayerLeds()
+    {
+        var slots = Slots;
+        foreach (var s in slots)
+            s.Output.PlayerNumberOverride = slots.Count > 1 ? s.Index + 1 : null;
     }
 
     // ───────────── Profils ─────────────
@@ -98,13 +236,24 @@ public sealed class ControllerService : IDisposable
         {
             ActiveProfile = profile;
             ApplyProfileSettings(profile);
-            Output.SetMode(profile.Mode);
             ProfileUpdated?.Invoke(profile);
         }
     }
 
     /// <summary>Change le mode de sortie du profil actif.</summary>
     public void SetOutputMode(OutputMode mode) => UpdateProfile(ActiveProfile with { Mode = mode });
+
+    /// <summary>Aperçu immédiat d'un réglage (curseur en cours de déplacement), sur toutes les manettes.</summary>
+    public void PreviewProcessing(ProcessingSettings settings)
+    {
+        foreach (var s in Slots) s.Output.Processor.Settings = settings;
+    }
+
+    public void PreviewFeedback(FeedbackSettings feedback)
+    {
+        foreach (var s in Slots) s.Output.SetFeedback(feedback);
+        _audio.Configure(feedback.AudioRumble, feedback.AudioRumbleIntensity);
+    }
 
     private void OnGameChanged(Profile? profile, string? exe)
     {
@@ -126,34 +275,149 @@ public sealed class ControllerService : IDisposable
         _gameExe = exe;
         ActiveProfile = profile;
         ApplyProfileSettings(profile);
-        Output.SetMode(profile.Mode);
         ActiveProfileChanged?.Invoke(profile);
     }
 
     private void ApplyProfileSettings(Profile profile)
     {
-        Output.Processor.Settings = profile.Processing;
-        Output.SetFeedback(profile.Feedback);
+        foreach (var s in Slots)
+        {
+            s.Output.Processor.Settings = profile.Processing;
+            s.Output.SetFeedback(profile.Feedback);
+            s.Output.SetMode(profile.Mode);
+        }
+        if (!IsDemo)
+            _audio.Configure(profile.Feedback.AudioRumble, profile.Feedback.AudioRumbleIntensity);
+    }
+
+    /// <summary>Options de l'application (raccourcis PS, bouton micro) appliquées à toutes les manettes.</summary>
+    public void ApplyGlobalOptions()
+    {
+        var options = new GlobalInputOptions
+        {
+            PsShortcuts = AppSettings.Current.PsShortcuts,
+            MuteControlsMicrophone = AppSettings.Current.MuteControlsMicrophone,
+        };
+        foreach (var s in Slots) s.Output.Processor.Options = options;
+    }
+
+    private void CycleProfile(int direction)
+    {
+        var all = Profiles.All;
+        if (all.Count < 2) return;
+        int i = all.ToList().FindIndex(p => p.Id == ActiveProfile.Id);
+        var next = all[(i + direction + all.Count) % all.Count];
+        _gameExe = null;
+        SelectProfile(next);
+        Notify?.Invoke($"Profil « {next.Name} »", next.Mode.Label(), NotifyKind.Info);
+    }
+
+    /// <summary>Mode bureau : la manette devient clavier + souris, puis retour au profil précédent.</summary>
+    public void ToggleDesktopMode()
+    {
+        if (ActiveProfile.Id == Profile.DesktopId)
+        {
+            var back = Profiles.Find(_profileBeforeDesktop) ?? Profiles.Default;
+            _gameExe = null;
+            SelectProfile(back);
+            Notify?.Invoke("Mode bureau désactivé", $"Retour au profil « {back.Name} »", NotifyKind.Info);
+            return;
+        }
+        var desktop = Profiles.Find(Profile.DesktopId);
+        if (desktop == null)
+        {
+            desktop = Profile.CreateDesktop();
+            Profiles.Save(desktop);
+        }
+        _profileBeforeDesktop = ActiveProfile.Id;
+        _gameExe = null;
+        SelectProfile(desktop);
+        Notify?.Invoke("Mode bureau", "Stick droit : souris · ✕ : clic · ○ : clic droit · PS + □ pour revenir", NotifyKind.Success);
+    }
+
+    // ───────────── Actions système (raccourcis PS, bouton micro) ─────────────
+
+    private void OnSystemAction(ControllerSlot slot, SystemAction action)
+    {
+        const ushort VkVolumeMute = 0xAD, VkVolumeDown = 0xAE, VkVolumeUp = 0xAF, VkNext = 0xB0, VkPrevious = 0xB1, VkPlayPause = 0xB3;
+        switch (action)
+        {
+            case SystemAction.ToggleMicrophone:
+                var muted = MicrophoneService.Toggle();
+                if (muted == null)
+                {
+                    Notify?.Invoke("Aucun micro", "Windows ne trouve pas de micro à couper.", NotifyKind.Warning);
+                    break;
+                }
+                SetMicState(muted);
+                Notify?.Invoke(muted.Value ? "Micro coupé" : "Micro activé", "Micro de Windows", muted.Value ? NotifyKind.Warning : NotifyKind.Success);
+                break;
+            case SystemAction.NextProfile: CycleProfile(+1); break;
+            case SystemAction.PreviousProfile: CycleProfile(-1); break;
+            case SystemAction.Screenshot:
+                KeyboardMouseEmitter.Tap(0x5B, 0x2C); // Windows + Impr. écran : enregistré dans Images\Captures d'écran
+                Notify?.Invoke("Capture d'écran", "Enregistrée dans Images › Captures d'écran", NotifyKind.Success);
+                break;
+            case SystemAction.ShowApp: ShowAppRequested?.Invoke(); break;
+            case SystemAction.ToggleOverlay: OverlayToggleRequested?.Invoke(); break;
+            case SystemAction.VolumeUp: KeyboardMouseEmitter.Tap(VkVolumeUp); break;
+            case SystemAction.VolumeDown: KeyboardMouseEmitter.Tap(VkVolumeDown); break;
+            case SystemAction.VolumeMute: KeyboardMouseEmitter.Tap(VkVolumeMute); break;
+            case SystemAction.MediaPlayPause: KeyboardMouseEmitter.Tap(VkPlayPause); break;
+            case SystemAction.MediaNext: KeyboardMouseEmitter.Tap(VkNext); break;
+            case SystemAction.MediaPrevious: KeyboardMouseEmitter.Tap(VkPrevious); break;
+            case SystemAction.ToggleDesktopMode: ToggleDesktopMode(); break;
+            case SystemAction.PowerOff: PowerOff(slot); break;
+        }
+    }
+
+    /// <summary>Éteint une manette Bluetooth.</summary>
+    public bool PowerOff(ControllerSlot? slot = null)
+    {
+        slot ??= _selected;
+        if (slot.Device is not { } device) return false;
+        if (device.Connection != ConnectionType.Bluetooth)
+        {
+            Notify?.Invoke("Extinction impossible en USB", "Débranchez le câble : la manette s'éteint d'elle-même en Bluetooth.", NotifyKind.Warning);
+            return false;
+        }
+        bool ok = slot.Connection.PowerOff();
+        Notify?.Invoke(ok ? $"{slot.Label} éteinte" : "Extinction impossible",
+            ok ? "Appuyez sur PS pour la rallumer." : "Windows n'a pas pu couper la liaison Bluetooth.", ok ? NotifyKind.Success : NotifyKind.Warning);
+        return ok;
+    }
+
+    private void PollMicrophone()
+    {
+        var muted = MicrophoneService.IsMuted();
+        if (muted != _micMuted) SetMicState(muted);
+    }
+
+    private void SetMicState(bool? muted)
+    {
+        _micMuted = muted;
+        foreach (var s in Slots) s.Output.SetMicrophoneMuted(muted == true && AppSettings.Current.MuteControlsMicrophone);
+        MicrophoneChanged?.Invoke(muted);
     }
 
     // ───────────── Calibration (par manette) ─────────────
 
-    private static string CalibrationKey(DualSenseDeviceInfo? device) =>
-        string.IsNullOrWhiteSpace(device?.SerialNumber) ? "*" : device!.SerialNumber!;
-
-    private void LoadCalibration(DualSenseDeviceInfo? device)
+    private static void LoadCalibration(ControllerSlot slot)
     {
+        var device = slot.Device;
         var all = AppSettings.Current.Calibrations;
-        if (all.TryGetValue(CalibrationKey(device), out var c) || all.TryGetValue("*", out c))
-            Output.Processor.SetCalibration(c.Left, c.Right);
+        if ((device?.Identity is { } id && all.TryGetValue(id, out var c))
+            || (device?.SerialNumber is { } serial && all.TryGetValue(serial, out c))
+            || all.TryGetValue("*", out c))
+            slot.Output.Processor.SetCalibration(c.Left, c.Right);
         else
-            Output.Processor.SetCalibration(StickCalibration.Identity, StickCalibration.Identity);
+            slot.Output.Processor.SetCalibration(StickCalibration.Identity, StickCalibration.Identity);
     }
 
     public void SaveCalibration(StickCalibration left, StickCalibration right)
     {
         Output.Processor.SetCalibration(left, right);
-        AppSettings.Current.Calibrations[CalibrationKey(Device)] = new CalibrationPair(left, right);
+        AppSettings.Current.Calibrations[Device?.Identity ?? "*"] = new CalibrationPair(left, right);
         AppSettings.Save();
     }
 
@@ -169,30 +433,86 @@ public sealed class ControllerService : IDisposable
             return;
         }
 
-        var device = _connection.Device;
-        if (!ReferenceEquals(device, _lastDevice))
+        foreach (var slot in Slots)
+            TrackSlot(slot);
+
+        var selected = _selected;
+        long count = selected.Connection.ReportCount;
+        bool changed = count != selected.LastReportCount;
+        selected.LastReportCount = count;
+        Frame?.Invoke(new FrameData(selected.Connection.Latest, selected.Output.LastProcessed, selected.Device, selected.Connection.GetOutput(), changed));
+    }
+
+    /// <summary>Connexion / déconnexion, calibration, batterie faible, usure : pour chaque manette.</summary>
+    private void TrackSlot(ControllerSlot slot)
+    {
+        var device = slot.Device;
+        if (!ReferenceEquals(device, slot.LastDevice))
         {
-            bool wasConnected = _lastDevice != null;
-            _lastDevice = device;
-            _lastReportCount = -1;
-            LoadCalibration(device);
-            DeviceChanged?.Invoke(device);
+            bool wasConnected = slot.LastDevice != null;
+            slot.LastDevice = device;
+            LoadCalibration(slot);
+            if (slot == _selected)
+                DeviceChanged?.Invoke(device);
+            string who = Slots.Count > 1 ? slot.Label : device?.DisplayName ?? "Manette";
             if (device != null)
-                Notify?.Invoke($"{device.DisplayName} connectée", $"Connexion {device.ConnectionLabel}", NotifyKind.Success);
+            {
+                slot.DisconnectedSince = DateTime.MaxValue;
+                slot.BatteryAlertLevel = 100;
+                Notify?.Invoke($"{who} connectée", $"{device.DisplayName} · {device.ConnectionLabel}", NotifyKind.Success);
+            }
             else if (wasConnected)
-                Notify?.Invoke("Manette déconnectée", "Reconnexion automatique dès qu'elle réapparaît", NotifyKind.Warning);
+            {
+                slot.DisconnectedSince = DateTime.UtcNow;
+                Notify?.Invoke($"{who} déconnectée", "Reconnexion automatique dès qu'elle réapparaît", NotifyKind.Warning);
+            }
+            ControllersChanged?.Invoke();
         }
 
-        long count = _connection.ReportCount;
-        bool changed = count != _lastReportCount;
-        _lastReportCount = count;
+        // Place supplémentaire vide depuis un moment : libérée
+        if (device == null && slot.Index > 0 && DateTime.UtcNow - slot.DisconnectedSince > TimeSpan.FromSeconds(4))
+        {
+            RemoveSlot(slot);
+            return;
+        }
+        if (device == null) return;
 
-        var state = _connection.Latest;
-        if (device != null && state.IsFullReport)
-            Output.SetBatteryLevel(state.BatteryPercent);
+        var state = slot.Connection.Latest;
+        if (!state.IsFullReport) return;
+        slot.Output.SetBatteryLevel(state.BatteryPercent);
+        CheckBattery(slot, state);
 
-        Frame?.Invoke(new FrameData(state, Output.LastProcessed, device, _connection.GetOutput(), changed));
+        // Historique d'usure (décalage brut au repos)
+        slot.RawDrift.Add(state, StickCalibration.Identity, StickCalibration.Identity);
+        if (slot.RawDrift.Evaluations != slot.LastDriftEvaluation)
+        {
+            slot.LastDriftEvaluation = slot.RawDrift.Evaluations;
+            if (device.Identity is { } id && (!double.IsNaN(slot.RawDrift.LeftRest) || !double.IsNaN(slot.RawDrift.RightRest)))
+                DriftHistory.Record(id, slot.RawDrift.LeftRest, slot.RawDrift.RightRest);
+        }
     }
+
+    private void CheckBattery(ControllerSlot slot, in DualSenseState state)
+    {
+        if (!AppSettings.Current.BatteryAlerts) return;
+        if (state.Charging != ChargingState.Discharging)
+        {
+            slot.BatteryAlertLevel = 100;
+            return;
+        }
+        int level = state.BatteryPercent;
+        int threshold = level <= 10 ? 10 : level <= 20 ? 20 : 100;
+        if (threshold < slot.BatteryAlertLevel)
+        {
+            slot.BatteryAlertLevel = threshold;
+            string who = Slots.Count > 1 ? slot.Label : "DualSense";
+            Notify?.Invoke($"Batterie faible · {level} %", $"{who} : pensez à la recharger", NotifyKind.Warning);
+            BatteryLow?.Invoke(slot, level);
+        }
+    }
+
+    /// <summary>Batterie sous 20 % puis 10 % (pour la notification Windows).</summary>
+    public event Action<ControllerSlot, int>? BatteryLow;
 
     // ───────────── Mode démo ─────────────
 
@@ -207,12 +527,13 @@ public sealed class ControllerService : IDisposable
 
     private static readonly DualSenseDeviceInfo DemoDevice = new("demo", ConnectionType.Usb, false, "DEMO", 64, 48);
     private readonly System.Diagnostics.Stopwatch _demoClock = System.Diagnostics.Stopwatch.StartNew();
+    private DualSenseDeviceInfo? _demoLast;
 
     private void RenderDemo()
     {
-        if (!ReferenceEquals(_lastDevice, DemoDevice))
+        if (!ReferenceEquals(_demoLast, DemoDevice))
         {
-            _lastDevice = DemoDevice;
+            _demoLast = DemoDevice;
             DeviceChanged?.Invoke(DemoDevice);
         }
 
@@ -241,19 +562,22 @@ public sealed class ControllerService : IDisposable
             IsFullReport = true,
             AccelY = 8192,
             AccelX = (short)(1500 * Math.Sin(t * 0.6)),
-            GyroY = (short)(400 * Math.Sin(t * 0.8)),
+            GyroY = (short)(150 * Math.Sin(t * 0.8)),
         };
         Output.Calibration.Add(state);
         Output.Processor.Process(state, out var processed);
-        Frame?.Invoke(new FrameData(state, processed, DemoDevice, _connection.GetOutput(), true));
+        Frame?.Invoke(new FrameData(state, processed, DemoDevice, Connection.GetOutput(), true));
     }
 
     public void Dispose()
     {
         CompositionTarget.Rendering -= OnRendering;
+        _micTimer.Stop();
+        _slotTimer?.Dispose();
         _watcher?.Dispose();
-        Output.Dispose();
-        _connection.Dispose();
+        _audio.Dispose();
+        DriftHistory.Flush();
+        foreach (var s in Slots) s.Dispose();
     }
 }
 

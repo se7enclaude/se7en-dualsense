@@ -34,7 +34,7 @@ public sealed class SticksPage : UserControl, ILivePage
     private void Apply(ProcessingSettings settings)
     {
         // Effet immédiat sur ce que reçoit le jeu, enregistrement du profil regroupé
-        App.Controller.Output.Processor.Settings = settings;
+        App.Controller.PreviewProcessing(settings);
         var profile = App.Controller.ActiveProfile with { Processing = settings };
         _save.Run(() => App.Controller.UpdateProfile(profile));
     }

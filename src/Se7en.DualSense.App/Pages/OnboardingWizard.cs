@@ -39,6 +39,18 @@ public sealed class OnboardingWizard
                 body.Children.Add(Row("HidHide", "Évite que les jeux voient deux manettes", drivers.HidHideInstalled));
                 if (!drivers.AllInstalled)
                     body.Children.Add(Ui.Text("Les pilotes manquants s'installent depuis l'accueil (bouton « Installer » du bandeau).", "Text.Caption", new Thickness(0, 12, 0, 0)));
+                if (InstallService.CanInstall)
+                    body.Children.Add(new SettingRow
+                    {
+                        Label = "Installer sur ce PC",
+                        Description = "Copie l'application dans votre dossier Programmes, avec raccourcis Bureau et menu Démarrer. Elle redémarre depuis là.",
+                        Control = Ui.Button("Installer", "Button.Accent", (_, _) =>
+                        {
+                            try { InstallService.InstallAndRestart(desktopShortcut: true); }
+                            catch (Exception ex) { _shell.Toast("Installation impossible", ex.Message, NotifyKind.Warning); }
+                        }),
+                        Last = true,
+                    });
                 break;
             case 1:
                 body.Children.Add(Ui.Text("Calibrer vos sticks", "Text.H1", new Thickness(0, 18, 0, 10)));

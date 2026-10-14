@@ -9,9 +9,15 @@ public delegate void DualSenseStateHandler(in DualSenseState state);
 /// Gère la détection, la lecture et la reconnexion automatique d'une DualSense.
 /// Toute l'E/S HID se fait sur un thread dédié : lecture bloquante → callback → écriture
 /// éventuelle du rapport de sortie si l'état demandé a changé.
+/// Plusieurs connexions peuvent coexister (une par manette) : chacune réserve la sienne.
 /// </summary>
 public sealed class DualSenseConnection : IDisposable
 {
+    // Manettes déjà prises par une connexion (chemin HID), et adresses actives (même manette en USB + Bluetooth)
+    private static readonly object ClaimLock = new();
+    private static readonly HashSet<string> ClaimedPaths = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> ActiveAddresses = new(StringComparer.OrdinalIgnoreCase);
+
     private const string BluetoothHidServiceGuid = "{00001124-0000-1000-8000-00805f9b34fb}";
     private const int ReadTimeoutMs = 1000;
     private const int RetryDelayMs = 1500;
@@ -154,21 +160,42 @@ public sealed class DualSenseConnection : IDisposable
         }
     }
 
+    private static IEnumerable<HidDevice> SupportedDevices() =>
+        DeviceList.Local
+            .GetHidDevices(DualSenseIds.SonyVendorId)
+            .Where(d => DualSenseIds.IsSupported(d.VendorID, d.ProductID))
+            .Where(d => d.GetMaxInputReportLength() >= 10);
+
     private static HidDevice? FindDevice()
     {
         try
         {
-            return DeviceList.Local
-                .GetHidDevices(DualSenseIds.SonyVendorId)
-                .Where(d => DualSenseIds.IsSupported(d.VendorID, d.ProductID))
-                .Where(d => d.GetMaxInputReportLength() >= 10)
-                // Priorité à l'USB si les deux sont présents
-                .OrderBy(d => IsBluetooth(d) ? 1 : 0)
-                .FirstOrDefault();
+            lock (ClaimLock)
+            {
+                return SupportedDevices()
+                    .Where(d => !ClaimedPaths.Contains(d.DevicePath))
+                    // Priorité à l'USB si les deux sont présents
+                    .OrderBy(d => IsBluetooth(d) ? 1 : 0)
+                    .FirstOrDefault();
+            }
         }
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>Nombre de manettes branchées qu'aucune connexion n'a encore prises.</summary>
+    public static int CountUnclaimed()
+    {
+        try
+        {
+            lock (ClaimLock)
+                return SupportedDevices().Count(d => !ClaimedPaths.Contains(d.DevicePath));
+        }
+        catch
+        {
+            return 0;
         }
     }
 
@@ -181,12 +208,65 @@ public sealed class DualSenseConnection : IDisposable
 
     private void RunSession(HidDevice hid)
     {
-        if (!hid.TryOpen(out HidStream stream))
+        lock (ClaimLock)
         {
-            Log?.Invoke("Impossible d'ouvrir la manette. Elle est peut-être masquée par HidHide ou utilisée en mode exclusif par une autre application.");
-            return;
+            if (!ClaimedPaths.Add(hid.DevicePath))
+                return;
         }
+        string? address = null;
+        try
+        {
+            if (!hid.TryOpen(out HidStream stream))
+            {
+                Log?.Invoke("Impossible d'ouvrir la manette. Elle est peut-être masquée par HidHide ou utilisée en mode exclusif par une autre application.");
+                return;
+            }
+            address = ReadMacAddress(hid, stream);
+            if (address != null)
+            {
+                lock (ClaimLock)
+                {
+                    // Même manette déjà ouverte par une autre connexion (USB + Bluetooth en même temps)
+                    if (!ActiveAddresses.Add(address))
+                    {
+                        address = null;
+                        stream.Dispose();
+                        Thread.Sleep(RetryDelayMs);
+                        return;
+                    }
+                }
+            }
+            RunOpenedSession(hid, stream, address);
+        }
+        finally
+        {
+            lock (ClaimLock)
+            {
+                ClaimedPaths.Remove(hid.DevicePath);
+                if (address != null) ActiveAddresses.Remove(address);
+            }
+        }
+    }
 
+    /// <summary>Rapport feature 0x09 : adresse Bluetooth de la manette (octets 1 à 6, poids faible en premier).</summary>
+    private static string? ReadMacAddress(HidDevice hid, HidStream stream)
+    {
+        try
+        {
+            var feature = new byte[Math.Max(hid.GetMaxFeatureReportLength(), 20)];
+            feature[0] = 0x09;
+            stream.GetFeature(feature);
+            if (feature.Skip(1).Take(6).All(b => b == 0)) return null;
+            return string.Join(":", Enumerable.Range(1, 6).Reverse().Select(i => feature[i].ToString("X2")));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void RunOpenedSession(HidDevice hid, HidStream stream, string? address)
+    {
         _stream = stream;
         stream.ReadTimeout = ReadTimeoutMs;
 
@@ -200,7 +280,10 @@ public sealed class DualSenseConnection : IDisposable
             hid.ProductID == DualSenseIds.DualSenseEdgeProductId,
             serial,
             hid.GetMaxInputReportLength(),
-            hid.GetMaxOutputReportLength());
+            hid.GetMaxOutputReportLength())
+        {
+            MacAddress = address,
+        };
 
         // La lecture du rapport feature 0x05 (calibration) active le mode complet 0x31 en Bluetooth.
         RequestCalibrationReport(hid, stream);
@@ -256,6 +339,17 @@ public sealed class DualSenseConnection : IDisposable
                 releaseLightbar = false;
             }
         }
+    }
+
+    /// <summary>
+    /// Éteint la manette (Bluetooth uniquement : en USB elle reste alimentée par le câble).
+    /// Renvoie false si ce n'est pas possible.
+    /// </summary>
+    public bool PowerOff()
+    {
+        var device = Device;
+        if (device is not { Connection: ConnectionType.Bluetooth }) return false;
+        return Bluetooth.Disconnect(device.MacAddress);
     }
 
     private void RequestCalibrationReport(HidDevice hid, HidStream stream)

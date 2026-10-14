@@ -30,7 +30,7 @@ public sealed class GyroPage : UserControl, ILivePage
     private void Set(GyroSettings g)
     {
         var p = App.Controller.ActiveProfile.Processing with { Gyro = g };
-        App.Controller.Output.Processor.Settings = p;
+        App.Controller.PreviewProcessing(p);
         var profile = App.Controller.ActiveProfile with { Processing = p };
         _save.Run(() => App.Controller.UpdateProfile(profile));
     }

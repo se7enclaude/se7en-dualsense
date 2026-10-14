@@ -28,7 +28,7 @@ public sealed class FeedbackPage : UserControl
 
     private void Set(FeedbackSettings f)
     {
-        App.Controller.Output.SetFeedback(f);
+        App.Controller.PreviewFeedback(f);
         var profile = App.Controller.ActiveProfile with { Feedback = f };
         _save.Run(() => App.Controller.UpdateProfile(profile));
         UpdatePreview();
@@ -104,6 +104,35 @@ public sealed class FeedbackPage : UserControl
         grid.Children.Add(lightCard);
 
         _root.Children.Add(grid);
+
+        // ── Vibrations générées depuis le son ──
+        var audio = new StackPanel();
+        audio.Children.Add(Ui.Text("VIBRATIONS DEPUIS LE SON", "Text.Overline", new Thickness(0, 0, 0, 6)));
+        audio.Children.Add(Ui.Text("La manette vibre au rythme du son de Windows : explosions, moteurs, basses de la musique. " +
+                                   "Idéal pour les jeux qui ne font pas vibrer la manette ; s'ajoute aux vibrations du jeu.",
+            "Text.Caption", new Thickness(0, 0, 0, 14)));
+        audio.Children.Add(Ui.Segmented(new[] { "Désactivé", "Basses seulement", "Basses + médiums" }, (int)F.AudioRumble,
+            i => Set(F with { AudioRumble = (AudioRumbleMode)i })));
+        audio.Children.Add(Ui.Slider("Intensité", 0.2, 2, F.AudioRumbleIntensity, Ui.Percent, v => Set(F with { AudioRumbleIntensity = v }), 0.05,
+            null).WithMargin(new Thickness(0, 16, 0, 0)));
+        _root.Children.Add(Ui.Card(audio, new Thickness(0, 16, 0, 0), 20));
+
+        // ── Micro ──
+        var mic = new StackPanel();
+        mic.Children.Add(Ui.Text("BOUTON MICRO", "Text.Overline", new Thickness(0, 0, 0, 6)));
+        mic.Children.Add(new SettingRow
+        {
+            Label = "Couper le micro de Windows",
+            Description = "Le bouton micro de la manette coupe ou rétablit le micro de Windows (Discord, Teams…). Sa LED orange s'allume quand il est coupé.",
+            Control = Ui.Switch(AppSettings.Current.MuteControlsMicrophone, v =>
+            {
+                AppSettings.Current.MuteControlsMicrophone = v;
+                AppSettings.Save();
+                App.Controller.ApplyGlobalOptions();
+            }),
+            Last = true,
+        });
+        _root.Children.Add(Ui.Card(mic, new Thickness(0, 16, 0, 0), 20));
         UpdatePreview();
     }
 

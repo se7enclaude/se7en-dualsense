@@ -83,7 +83,8 @@
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="ModeDs4" Style="{StaticResource Segment}" GroupName="OutputMode" Content="DualShock 4" Checked="OnModeChecked" />
                             <RadioButton x:Name="ModeXbox" Style="{StaticResource Segment}" GroupName="OutputMode" Content="Xbox 360" Checked="OnModeChecked" />
-                            <RadioButton x:Name="ModeNative" Style="{StaticResource Segment}" GroupName="OutputMode" Content="DualSense native" Checked="OnModeChecked" />
+                            <RadioButton x:Name="ModeNative" Style="{StaticResource Segment}" GroupName="OutputMode" Content="Native" Checked="OnModeChecked" ToolTip="DualSense native : le jeu voit la vraie manette" />
+                            <RadioButton x:Name="ModeKbm" Style="{StaticResource Segment}" GroupName="OutputMode" Content="Clavier / souris" Checked="OnModeChecked" />
                         </StackPanel>
                     </Border>
                     <TextBlock x:Name="ModeMessage" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left" Margin="0,10,0,24" />
@@ -118,7 +119,7 @@
 
                 <!-- Colonne droite : la manette en direct, devant la typo, et le tampon -->
                 <Grid Grid.Row="1" Grid.Column="1">
-                    <c:DualSenseView x:Name="Controller" ShowInputOverlays="False" Width="470" Height="391" Margin="0,-150,0,-10" VerticalAlignment="Top" HorizontalAlignment="Center" />
+                    <ContentControl x:Name="ControllerHost" Width="500" Height="400" Margin="0,-160,0,-10" VerticalAlignment="Top" HorizontalAlignment="Center" Focusable="False" />
                     <c:StampBadge x:Name="Stamp" Value="—" Caption="BATTERIE" Width="112" Height="112"
                                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,28" RenderTransformOrigin="0.5,0.5">
                         <c:StampBadge.RenderTransform><RotateTransform Angle="-8" /></c:StampBadge.RenderTransform>

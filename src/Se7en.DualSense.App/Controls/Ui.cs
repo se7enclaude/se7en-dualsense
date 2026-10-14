@@ -101,6 +101,19 @@ public static class Ui
         return element;
     }
 
+    /// <summary>Applique une configuration et renvoie l'élément (création en une expression).</summary>
+    public static T With<T>(this T element, Action<T> configure) where T : FrameworkElement
+    {
+        configure(element);
+        return element;
+    }
+
+    public static T WithMargin<T>(this T element, Thickness margin) where T : FrameworkElement
+    {
+        element.Margin = margin;
+        return element;
+    }
+
     public static string Percent(double v) => Math.Round(v * 100).ToString(CultureInfo.InvariantCulture) + " %";
 
     /// <summary>Regroupe des modifications rapides (curseurs) avant d'enregistrer.</summary>

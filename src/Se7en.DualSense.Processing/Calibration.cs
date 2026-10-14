@@ -139,6 +139,13 @@ public sealed class DriftDetector
     public double LeftDrift { get; private set; }
     public double RightDrift { get; private set; }
 
+    /// <summary>Décalage mesuré au repos, même faible (NaN si le stick bouge) : sert à l'historique d'usure.</summary>
+    public double LeftRest { get; private set; } = double.NaN;
+    public double RightRest { get; private set; } = double.NaN;
+
+    /// <summary>Incrémenté à chaque nouvelle évaluation (toutes les 30 mesures).</summary>
+    public int Evaluations { get; private set; }
+
     public void Add(in DualSenseState s, StickCalibration left, StickCalibration right)
     {
         _lx[_index] = StickMath.Normalize(s.LeftX) - left.CenterX;
@@ -149,16 +156,18 @@ public sealed class DriftDetector
         if (_filled < Window) _filled++;
         if (_index % 30 != 0 || _filled < Window) return;
 
-        LeftDrift = Evaluate(_lx, _ly);
-        RightDrift = Evaluate(_rx, _ry);
+        (LeftDrift, LeftRest) = Evaluate(_lx, _ly);
+        (RightDrift, RightRest) = Evaluate(_rx, _ry);
+        Evaluations++;
     }
 
-    private static double Evaluate(double[] xs, double[] ys)
+    private static (double Drift, double RestOffset) Evaluate(double[] xs, double[] ys)
     {
         double mx = xs.Average(), my = ys.Average();
         double noise = Math.Sqrt(xs.Select(v => (v - mx) * (v - mx)).Average() + ys.Select(v => (v - my) * (v - my)).Average());
         double offset = Math.Sqrt(mx * mx + my * my);
         // Immobile, décentré mais pas poussé franchement (un vrai mouvement dépasse largement 0.35)
-        return noise < StableNoise && offset > 0.04 && offset < 0.35 ? offset : 0;
+        bool still = noise < StableNoise && offset < 0.35;
+        return (still && offset > 0.04 ? offset : 0, still ? offset : double.NaN);
     }
 }

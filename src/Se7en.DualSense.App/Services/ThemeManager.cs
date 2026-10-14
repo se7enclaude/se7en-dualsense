@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
+using System.Windows.Media;
 using Se7en.DualSense.Output;
 using Se7en.DualSense.Processing;
 
@@ -37,10 +38,99 @@ public static class ThemeManager
         Current = theme;
         AppSettings.Current.Theme = theme;
         AppSettings.Save();
+        ApplyAccent();
         ThemeChanged?.Invoke();
     }
 
     public static void Toggle() => Apply(Current == AppTheme.Light ? AppTheme.Dark : AppTheme.Light);
+
+    // ───────────── Couleur d'accent ─────────────
+
+    /// <summary>Accents proposés : (clé, nom, couleur en thème clair, couleur en thème sombre).</summary>
+    public static readonly (string Key, string Name, Color Light, Color Dark)[] Accents =
+    {
+        ("violet", "Violet", Color.FromRgb(0x5B, 0x2D, 0xE0), Color.FromRgb(0x7B, 0x57, 0xEA)),
+        ("blue", "Bleu", Color.FromRgb(0x00, 0x6F, 0xCD), Color.FromRgb(0x2E, 0x8B, 0xEA)),
+        ("cyan", "Cyan", Color.FromRgb(0x0A, 0x8F, 0xA6), Color.FromRgb(0x2C, 0xC4, 0xDB)),
+        ("green", "Vert", Color.FromRgb(0x14, 0x8F, 0x52), Color.FromRgb(0x2E, 0xC2, 0x73)),
+        ("orange", "Orange", Color.FromRgb(0xD9, 0x5B, 0x0B), Color.FromRgb(0xF5, 0x81, 0x2F)),
+        ("red", "Rouge", Color.FromRgb(0xCF, 0x22, 0x3A), Color.FromRgb(0xF0, 0x4A, 0x5E)),
+        ("pink", "Rose", Color.FromRgb(0xC8, 0x2A, 0x7A), Color.FromRgb(0xEE, 0x5A, 0xA0)),
+        ("lightbar", "Barre lumineuse", Color.FromRgb(0x5B, 0x2D, 0xE0), Color.FromRgb(0x7B, 0x57, 0xEA)),
+    };
+
+    private static ResourceDictionary? _accentDictionary;
+    private static Color _liveColor = Color.FromRgb(0x5B, 0x2D, 0xE0);
+
+    public static string AccentKey => AppSettings.Current.Accent;
+
+    public static void SetAccent(string key)
+    {
+        AppSettings.Current.Accent = key;
+        AppSettings.Save();
+        ApplyAccent();
+        ThemeChanged?.Invoke();
+    }
+
+    /// <summary>Accent « barre lumineuse » : suit la couleur envoyée à la manette (rendue lisible).</summary>
+    public static void SetLiveColor(Color c)
+    {
+        if (AccentKey != "lightbar") return;
+        // Couleur trop sombre ou éteinte : on garde la précédente
+        if (Math.Max(c.R, Math.Max(c.G, c.B)) < 40) return;
+        var readable = Readable(c);
+        if (Distance(readable, _liveColor) < 18) return;
+        _liveColor = readable;
+        ApplyAccent();
+        ThemeChanged?.Invoke();
+    }
+
+    public static void ApplyAccent()
+    {
+        var entry = Accents.FirstOrDefault(a => a.Key == AccentKey);
+        if (entry.Key == null) entry = Accents[0];
+        bool dark = Current == AppTheme.Dark;
+        var baseColor = entry.Key == "lightbar" ? (dark ? Mix(_liveColor, Colors.White, 0.15) : _liveColor) : dark ? entry.Dark : entry.Light;
+
+        var d = new ResourceDictionary();
+        Color soft = dark ? Color.FromArgb(0x2E, baseColor.R, baseColor.G, baseColor.B) : Mix(baseColor, Colors.White, 0.9);
+        d["Color.Accent"] = baseColor;
+        d["Color.AccentSoft"] = soft;
+        d["Accent"] = Frozen(baseColor);
+        d["Accent.Hover"] = Frozen(dark ? Mix(baseColor, Colors.White, 0.15) : Mix(baseColor, Colors.Black, 0.15));
+        d["Accent.Press"] = Frozen(dark ? Mix(baseColor, Colors.Black, 0.2) : Mix(baseColor, Colors.Black, 0.35));
+        d["Accent.Soft"] = Frozen(soft);
+        d["Accent.Line"] = Frozen(Mix(baseColor, Colors.White, 0.4));
+        d["Text.Accent"] = Frozen(dark ? Mix(baseColor, Colors.White, 0.3) : baseColor);
+        d["Shadow.Glow"] = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = baseColor, Direction = 270, ShadowDepth = 4, BlurRadius = 22, Opacity = dark ? 0.5 : 0.45,
+        };
+
+        var merged = Application.Current.Resources.MergedDictionaries;
+        if (_accentDictionary != null) merged.Remove(_accentDictionary);
+        _accentDictionary = d;
+        merged.Add(d);
+    }
+
+    private static SolidColorBrush Frozen(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
+
+    private static Color Mix(Color a, Color b, double t) => Color.FromRgb(
+        (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
+
+    private static double Distance(Color a, Color b) => Math.Abs(a.R - b.R) + Math.Abs(a.G - b.G) + Math.Abs(a.B - b.B);
+
+    /// <summary>Assombrit une couleur trop claire pour qu'un texte blanc reste lisible dessus.</summary>
+    private static Color Readable(Color c)
+    {
+        double lum = (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255;
+        return lum > 0.55 ? Mix(c, Colors.Black, (lum - 0.45) * 1.2) : c;
+    }
 }
 
 public sealed record CalibrationPair(StickCalibration Left, StickCalibration Right);
@@ -66,6 +156,18 @@ public sealed class AppSettings
     /// <summary>Naviguer dans l'application avec la croix directionnelle et ✕ / ○.</summary>
     public bool ControllerNavigation { get; set; } = true;
     public bool NotifyOnConnect { get; set; } = true;
+
+    /// <summary>Couleur d'accent de l'interface (voir <see cref="ThemeManager.Accents"/>).</summary>
+    public string Accent { get; set; } = "violet";
+    /// <summary>PS + bouton = raccourcis système.</summary>
+    public bool PsShortcuts { get; set; } = true;
+    /// <summary>Le bouton micro de la manette coupe le micro de Windows.</summary>
+    public bool MuteControlsMicrophone { get; set; } = true;
+    public bool BatteryAlerts { get; set; } = true;
+    public bool AutoCheckUpdates { get; set; } = true;
+    public DateTime LastUpdateCheck { get; set; }
+    /// <summary>Version proposée que l'utilisateur a choisi d'ignorer.</summary>
+    public string? SkippedVersion { get; set; }
 
     public static string Directory { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "se7en DualSense");

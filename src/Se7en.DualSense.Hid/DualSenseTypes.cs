@@ -46,6 +46,27 @@ public enum DualSenseButtons : uint
     FnRight = 1u << 20,
     PaddleLeft = 1u << 21,
     PaddleRight = 1u << 22,
+
+    // Entrées virtuelles produites par le traitement (jamais par la manette) : zones et gestes du pavé tactile
+    TouchZone1 = 1u << 23,
+    TouchZone2 = 1u << 24,
+    TouchZone3 = 1u << 25,
+    TouchZone4 = 1u << 26,
+    SwipeUp = 1u << 27,
+    SwipeDown = 1u << 28,
+    SwipeLeft = 1u << 29,
+    SwipeRight = 1u << 30,
+}
+
+public static class DualSenseButtonGroups
+{
+    /// <summary>Bits virtuels (zones et gestes du pavé) : jamais transmis tels quels aux manettes virtuelles.</summary>
+    public const DualSenseButtons Virtual =
+        DualSenseButtons.TouchZone1 | DualSenseButtons.TouchZone2 | DualSenseButtons.TouchZone3 | DualSenseButtons.TouchZone4 |
+        DualSenseButtons.SwipeUp | DualSenseButtons.SwipeDown | DualSenseButtons.SwipeLeft | DualSenseButtons.SwipeRight;
+
+    public const DualSenseButtons Edge =
+        DualSenseButtons.FnLeft | DualSenseButtons.FnRight | DualSenseButtons.PaddleLeft | DualSenseButtons.PaddleRight;
 }
 
 public enum ChargingState : byte

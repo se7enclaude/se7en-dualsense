@@ -104,5 +104,19 @@ public sealed record ProcessingSettings
     /// <summary>Fréquence du turbo (appuis par seconde).</summary>
     public double TurboRate { get; init; } = 12;
 
+    /// <summary>Bouton physique → touche, clic, macro ou action système (prioritaire sur <see cref="Remap"/>).</summary>
+    public Dictionary<DualSenseButtons, InputAction> Actions { get; init; } = new();
+
+    /// <summary>Bouton qui active la couche secondaire tant qu'il est maintenu (None = pas de couche).</summary>
+    public DualSenseButtons ShiftButton { get; init; }
+
+    /// <summary>Couche secondaire : mêmes principes que <see cref="Remap"/> et <see cref="Actions"/>.</summary>
+    public Dictionary<DualSenseButtons, DualSenseButtons> ShiftRemap { get; init; } = new();
+    public Dictionary<DualSenseButtons, InputAction> ShiftActions { get; init; } = new();
+
+    public TouchpadSettings Touchpad { get; init; } = new();
+    public MouseSettings Mouse { get; init; } = new();
+    public List<Macro> Macros { get; init; } = new();
+
     public static ProcessingSettings Default { get; } = new();
 }
