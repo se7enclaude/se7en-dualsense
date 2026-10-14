@@ -1,11 +1,12 @@
-using Se7en.DualSense.App.Services;
 using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
+using Se7en.DualSense.App.Controls;
+using Se7en.DualSense.App.Services;
+using Se7en.DualSense.Hid;
 
 namespace Se7en.DualSense.App.Pages;
 
@@ -13,25 +14,26 @@ namespace Se7en.DualSense.App.Pages;
 /// Écran d'ouverture. Chronologie (secondes) :
 ///   0.0 – 1.5  « se7en » puis « DUALSENSE » apparaissent lettre par lettre, la ligne lumineuse s'étire
 ///   1.9 – 2.5  le titre s'efface en grandissant
-///   2.2 – 3.1  « DUAL » descend, « SENSE » monte, la manette se pose au premier plan
-///   2.6 – 3.6  logo, menu, accroche, sous-titre puis bouton
-///   ensuite    flottement de la manette, parallaxe à la souris, curseur décoratif
-/// Un clic ou une touche pendant l'intro saute directement à la fin.
+///   2.2 – 3.2  le décor s'allume (halo, grille, typo fantôme), la manette 3D arrive
+///   2.6 – 3.7  marque, menu, accroche, état de la manette, boutons, points forts
+///   ensuite    la manette 3D suit la vraie manette (et la souris), le halo suit légèrement le curseur
+/// Un clic ou une touche pendant l'intro saute directement à la fin ; Entrée entre dans l'application.
 /// </summary>
 public partial class WelcomeView : UserControl
 {
     private const double IntroEnd = 3.7;
     private const double ExitDuration = 0.45;
-    private const double ControllerAngle = -7;
 
     private readonly Stopwatch _clock = new();
     private readonly List<TextBlock> _word1 = new(), _word2 = new();
+    private readonly Controller3DView? _view3D;
     private double _timeOffset;
     private double _exitStart = -1;
     private string? _exitTarget;
-    private Point _mouse = new(720, 450), _ring = new(720, 450), _dot = new(720, 450);
+    private Point _mouse = new(720, 450);
     private double _parX, _parY;
-    private bool _running, _mouseSeen;
+    private bool _running;
+    private string _lastStatus = "";
 
     /// <summary>Déclenché à la fin de la sortie ; argument = page demandée (null = accueil).</summary>
     public event Action<string?>? Entered;
@@ -39,40 +41,19 @@ public partial class WelcomeView : UserControl
     public WelcomeView()
     {
         InitializeComponent();
-        LoadPhoto();
-        BuildIntroTitle();
-        Loaded += (_, _) =>
+        var view = new Controller3DView();
+        if (view.IsAvailable)
         {
-            Start();
-            if (Visibility == Visibility.Visible) SoundService.Play(UiSound.Intro);
-        };
+            _view3D = view;
+            ControllerHost.Content = view;
+        }
+        BuildIntroTitle();
+        Loaded += (_, _) => Start();
         Unloaded += (_, _) => Stop();
         PreviewMouseDown += OnPreviewMouseDown;
         PreviewKeyDown += OnPreviewKeyDown;
-        MouseMove += (_, e) =>
-        {
-            _mouse = e.GetPosition(Scene);
-            if (!_mouseSeen) { _mouseSeen = true; _ring = _dot = _mouse; }
-        };
+        MouseMove += (_, e) => _mouse = e.GetPosition(Scene);
         Apply(0);
-    }
-
-    private void LoadPhoto()
-    {
-        try
-        {
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.UriSource = new Uri("pack://application:,,,/Assets/Images/dualsense.png");
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.EndInit();
-            image.Freeze();
-            Photo.Source = image;
-        }
-        catch (Exception ex) when (ex is IOException or NotSupportedException)
-        {
-            // Photo non versionnée absente : l'accueil s'affiche sans manette
-        }
     }
 
     /// <summary>Une TextBlock par lettre pour pouvoir les animer une à une.</summary>
@@ -85,22 +66,21 @@ public partial class WelcomeView : UserControl
         {
             var tb = new TextBlock
             {
-                Text = ch.ToString(), FontFamily = brand, FontSize = 120,
+                Text = ch.ToString(), FontFamily = brand, FontSize = 120, Foreground = Brushes.White,
                 RenderTransform = new TranslateTransform(), Opacity = 0,
             };
-            tb.SetResourceReference(TextBlock.ForegroundProperty, "Text.Primary");
             IntroWord1.Children.Add(tb);
             _word1.Add(tb);
         }
 
-        var lavender = (Brush)FindResource("Gradient.Lavender");
         foreach (char ch in "DUALSENSE")
         {
             var tb = new TextBlock
             {
-                Text = ch.ToString(), FontFamily = display, FontSize = 64, Foreground = lavender,
+                Text = ch.ToString(), FontFamily = display, FontSize = 64,
                 RenderTransform = new TranslateTransform(), Opacity = 0,
             };
+            tb.SetResourceReference(TextBlock.ForegroundProperty, "Highlight");
             IntroWord2.Children.Add(tb);
             _word2.Add(tb);
         }
@@ -112,6 +92,7 @@ public partial class WelcomeView : UserControl
         _running = true;
         _clock.Restart();
         CompositionTarget.Rendering += OnRendering;
+        if (App.Controller != null) App.Controller.Frame += OnFrame;
         Focus();
     }
 
@@ -120,6 +101,21 @@ public partial class WelcomeView : UserControl
         if (!_running) return;
         _running = false;
         CompositionTarget.Rendering -= OnRendering;
+        if (App.Controller != null) App.Controller.Frame -= OnFrame;
+    }
+
+    /// <summary>La manette 3D et la pastille d'état suivent la vraie manette.</summary>
+    private void OnFrame(FrameData frame)
+    {
+        _view3D?.Update(frame);
+        string status = !frame.IsConnected
+            ? "En attente de la manette · USB ou Bluetooth"
+            : $"{frame.Device!.DisplayName} connectée · {frame.Device.ConnectionLabel}" +
+              (frame.State.IsFullReport ? $" · {frame.State.BatteryPercent} %" : "");
+        if (status == _lastStatus) return;
+        _lastStatus = status;
+        StatusText.Text = status;
+        StatusDot.SetResourceReference(Shape.FillProperty, frame.IsConnected ? "Highlight" : "Text.Tertiary");
     }
 
     private double Now => _clock.Elapsed.TotalSeconds + _timeOffset;
@@ -206,78 +202,52 @@ public partial class WelcomeView : UserControl
         IntroScale.ScaleX = IntroScale.ScaleY = 1 + 0.12 * introOut;
         Intro.Visibility = introOut >= 1 ? Visibility.Collapsed : Visibility.Visible;
 
-        // ── Parallaxe à la souris une fois l'accueil installé ──
+        // ── Parallaxe douce à la souris une fois la scène installée ──
         double settle = Seg(t, 3.1, 3.7);
         double mx = Math.Clamp((_mouse.X - 720) / 720, -1, 1), my = Math.Clamp((_mouse.Y - 450) / 450, -1, 1);
-        _parX += (mx - _parX) * 0.08;
-        _parY += (my - _parY) * 0.08;
+        _parX += (mx - _parX) * 0.06;
+        _parY += (my - _parY) * 0.06;
 
-        // ── Manette ──
-        double arrive = EaseOutQuint(Seg(t, 2.35, 3.2));
-        double idle = Math.Max(0, t - 3.2);
-        double bob = Math.Sin(idle * 2 * Math.PI / 3.6) * Math.Min(1, idle);
-        Controller.Opacity = arrive;
-        ControllerScale.ScaleX = ControllerScale.ScaleY = Lerp(0.9, 1, arrive);
-        ControllerRotate.Angle = Lerp(ControllerAngle - 6, ControllerAngle, arrive) + 1.5 * _parX * settle;
-        ControllerShift.X = 10 * _parX * settle;
-        ControllerShift.Y = Lerp(140, 0, arrive) - 9 * bob + 6 * _parY * settle;
+        // ── Décor ──
+        double light = EaseOutCubic(Seg(t, 2.2, 3.2));
+        Glow.Opacity = 0.5 * light;
+        Glow2.Opacity = light;
+        GlowShift.X = 30 * _parX * settle;
+        GlowShift.Y = 20 * _parY * settle;
+        Grid.Opacity = light;
+        GhostText.Opacity = light;
+        GhostShift.X = -12 * _parX * settle;
+        GhostShift.Y = Lerp(60, 0, EaseOutQuint(Seg(t, 2.2, 3.3)));
 
-        ControllerShadow.Opacity = 0.9 * arrive;
-        double lift = (bob + 1) / 2;
-        ShadowScale.ScaleX = ShadowScale.ScaleY = 1 - 0.08 * lift * Math.Min(1, idle);
+        // ── Manette 3D ──
+        double arrive = EaseOutQuint(Seg(t, 2.35, 3.3));
+        ControllerHost.Opacity = arrive;
+        ControllerScale.ScaleX = ControllerScale.ScaleY = Lerp(0.82, 1, arrive);
+        ControllerShift.X = 8 * _parX * settle;
+        ControllerShift.Y = Lerp(90, 0, arrive) + 6 * _parY * settle;
+        DragHint.Opacity = Seg(t, 3.6, 4.2) * 0.9;
 
-        double glow = 0.4 + 0.25 * Math.Sin(t * 2 * Math.PI / 2.8);
-        LightbarGlowL.Opacity = LightbarGlowR.Opacity = glow;
-
-        // ── Typo géante ──
-        double dual = EaseOutQuint(Seg(t, 2.2, 3.0));
-        double sense = EaseOutQuint(Seg(t, 2.3, 3.1));
-        DualText.Opacity = dual;
-        DualShift.Y = Lerp(-480, 0, dual) - 6 * _parY * settle;
-        DualShift.X = -8 * _parX * settle;
-        SenseText.Opacity = sense;
-        SenseShift.Y = Lerp(480, 0, sense) - 6 * _parY * settle;
-        SenseShift.X = -8 * _parX * settle;
-
-        // ── Logo, menu, accroche ──
-        double logo = EaseOutCubic(Seg(t, 2.6, 3.1));
-        Logo.Opacity = logo;
-        LogoScale.ScaleX = LogoScale.ScaleY = Lerp(0.6, 1, logo);
-
-        double nav = EaseOutCubic(Seg(t, 2.7, 3.3));
-        Nav.Opacity = nav;
-        NavShift.Y = Lerp(-12, 0, nav);
-
-        SlideIn(Headline1, Headline1Shift, Seg(t, 2.7, 3.4));
-        SlideIn(Headline2, Headline2Shift, Seg(t, 2.8, 3.5));
-        SlideIn(Subtitle, SubtitleShift, Seg(t, 2.9, 3.6));
-
-        double cta = EaseOutCubic(Seg(t, 3.0, 3.6));
-        CtaButton.Opacity = cta;
-        CtaScale.ScaleX = CtaScale.ScaleY = Lerp(0.9, 1, cta);
-        CtaButton.IsHitTestVisible = cta > 0.9;
-        ProfilesButton.Opacity = cta;
-        ProfilesButton.IsHitTestVisible = cta > 0.9;
-        Grid.Opacity = EaseOutCubic(Seg(t, 2.4, 3.2));
-        Nav.IsHitTestVisible = nav > 0.9;
+        // ── Barre du haut, accroche, boutons, points forts ──
+        Reveal(Brand, BrandShift, Seg(t, 2.6, 3.1), 0, -12);
+        Reveal(Nav, NavShift, Seg(t, 2.7, 3.2), 0, -12);
+        Reveal(Overline, OverlineShift, Seg(t, 2.7, 3.3), -30, 0);
+        Reveal(Headline1, Headline1Shift, Seg(t, 2.8, 3.4), -40, 0);
+        Reveal(Headline2, Headline2Shift, Seg(t, 2.9, 3.5), -40, 0);
+        Reveal(Subtitle, SubtitleShift, Seg(t, 3.0, 3.6), -30, 0);
+        Status.Opacity = EaseOutCubic(Seg(t, 3.1, 3.6));
+        Reveal(Actions, ActionsShift, Seg(t, 3.15, 3.7), 0, 14);
+        Reveal(Features, FeaturesShift, Seg(t, 3.3, 3.9), 0, 14);
+        Nav.IsHitTestVisible = Actions.IsHitTestVisible = t > 3.4;
 
         SkipHint.Opacity = t < IntroEnd ? 0.8 * Seg(t, 0.5, 0.9) * (1 - Seg(t, 1.9, 2.3)) : 0;
-
-        // ── Curseur décoratif ──
-        CursorLayer.Opacity = _mouseSeen ? Seg(t, 3.3, 3.8) : 0;
-        _dot = new Point(_dot.X + (_mouse.X - _dot.X) * 0.45, _dot.Y + (_mouse.Y - _dot.Y) * 0.45);
-        _ring = new Point(_ring.X + (_mouse.X - _ring.X) * 0.14, _ring.Y + (_mouse.Y - _ring.Y) * 0.14);
-        Canvas.SetLeft(CursorDot, _dot.X - 16);
-        Canvas.SetTop(CursorDot, _dot.Y - 40);
-        Canvas.SetLeft(CursorRing, _ring.X - 43);
-        Canvas.SetTop(CursorRing, _ring.Y - 67);
     }
 
-    private static void SlideIn(UIElement el, TranslateTransform shift, double p)
+    private static void Reveal(UIElement el, TranslateTransform shift, double p, double fromX, double fromY)
     {
         double e = EaseOutCubic(p);
         el.Opacity = e;
-        shift.X = Lerp(-40, 0, e);
+        shift.X = Lerp(fromX, 0, e);
+        shift.Y = Lerp(fromY, 0, e);
     }
 
     private static double Seg(double t, double start, double end) => Math.Clamp((t - start) / (end - start), 0, 1);

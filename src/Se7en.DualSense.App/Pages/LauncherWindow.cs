@@ -109,7 +109,6 @@ public sealed class LauncherWindow : Window
             App.SuspendControllerNavigation = false;
             _open = null;
         };
-        SoundService.Play(UiSound.Intro);
     }
 
     private async Task LoadAsync()

@@ -4,178 +4,248 @@
              xmlns:c="clr-namespace:Se7en.DualSense.App.Controls"
              ClipToBounds="True" Focusable="True" FocusVisualStyle="{x:Null}">
     <!--
-        Écran d'ouverture : animation du titre « se7en DualSense », puis accueil
-        « Découvrez —DualSense » avec la manette au premier plan. Scène 1440 × 900 mise à l'échelle.
+        Écran d'ouverture : animation du titre « se7en DualSense », puis scène sombre avec la manette 3D en direct.
+        Scène 1440 × 900 mise à l'échelle sans recadrage ; le fond sombre remplit toute la fenêtre.
     -->
     <UserControl.Resources>
-        <LinearGradientBrush x:Key="DualBrush" StartPoint="0,0" EndPoint="1,0.4">
-            <GradientStop Color="#B687E5" Offset="0" />
-            <GradientStop Color="#A592E9" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SenseBrush" StartPoint="0,0" EndPoint="1,0.4">
-            <GradientStop Color="#9E97EA" Offset="0" />
-            <GradientStop Color="#8F9BEA" Offset="1" />
-        </LinearGradientBrush>
         <Style x:Key="NavLink" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+            <Setter Property="Foreground" Value="#A6FFFFFF" />
             <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
             <Setter Property="FontSize" Value="15" />
-            <Setter Property="Margin" Value="0,0,36,0" />
+            <Setter Property="Margin" Value="0,0,34,0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <ContentPresenter Margin="0,4" />
+                        <StackPanel>
+                            <ContentPresenter Margin="0,4" />
+                            <Rectangle x:Name="Under" Height="2" RadiusX="1" RadiusY="1" Fill="{DynamicResource Highlight}" Opacity="0" />
+                        </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+                                <Setter Property="Foreground" Value="White" />
+                                <Setter TargetName="Under" Property="Opacity" Value="1" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Bouton principal citron -->
         <Style x:Key="Cta" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" CornerRadius="26" Height="52" Padding="30,0" Background="{DynamicResource Ink}">
+                        <Border x:Name="Bd" CornerRadius="28" Height="56" Padding="30,0" Background="{DynamicResource Highlight}">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock x:Name="Txt" Text="{TemplateBinding Content}" FontFamily="{StaticResource Font.Sans}" FontSize="19" FontWeight="Medium"
-                                           Foreground="{DynamicResource OnInk}" VerticalAlignment="Center" />
-                                <c:AxisIcon x:Name="Arrow" Data="{StaticResource Icon.ArrowUpRight}" Width="20" Height="20" Margin="12,0,0,0" Foreground="{DynamicResource OnInk}" />
+                                <TextBlock Text="{TemplateBinding Content}" FontFamily="{StaticResource Font.Sans}" FontSize="18" FontWeight="SemiBold"
+                                           Foreground="#111114" VerticalAlignment="Center" />
+                                <c:AxisIcon x:Name="Arrow" Data="{StaticResource Icon.ArrowRight}" Width="19" Height="19" Margin="12,0,0,0" Foreground="#111114">
+                                    <c:AxisIcon.RenderTransform><TranslateTransform x:Name="ArrowShift" /></c:AxisIcon.RenderTransform>
+                                </c:AxisIcon>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Accent}" />
-                                <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource OnAccent}" />
-                                <Setter TargetName="Arrow" Property="Foreground" Value="{DynamicResource OnAccent}" />
+                                <Setter TargetName="Bd" Property="Background" Value="White" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ArrowShift" Storyboard.TargetProperty="X" To="5" Duration="0:0:0.18" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ArrowShift" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.2" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Bouton secondaire transparent -->
+        <Style x:Key="Ghost" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="28" Height="56" Padding="26,0" Background="#14FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1">
+                            <TextBlock Text="{TemplateBinding Content}" FontFamily="{StaticResource Font.Sans}" FontSize="16" FontWeight="Medium"
+                                       Foreground="White" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#26FFFFFF" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#66FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Petite carte « point fort » en verre fumé -->
+        <Style x:Key="Feature" TargetType="Border">
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="18,16" />
+            <Setter Property="Width" Value="232" />
+            <Setter Property="Margin" Value="0,0,14,0" />
+            <Setter Property="Background" Value="#0FFFFFFF" />
+            <Setter Property="BorderBrush" Value="#1AFFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
     </UserControl.Resources>
 
-    <Grid x:Name="Root" Background="{DynamicResource Surface.Solid}">
-        <Viewbox Stretch="UniformToFill">
+    <Grid x:Name="Root">
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#17171D" Offset="0" />
+                <GradientStop Color="#0B0B0E" Offset="0.55" />
+                <GradientStop Color="#060608" Offset="1" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Viewbox Stretch="Uniform">
             <Canvas x:Name="Scene" Width="1440" Height="900" ClipToBounds="True">
 
-                <!-- ═══════════ Accueil ═══════════ -->
-
-                <!-- Typo display géante -->
-                <TextBlock x:Name="DualText" Text="DUAL" Canvas.Left="57" Canvas.Top="-195" FontFamily="{StaticResource Font.Display}"
-                           FontSize="460" Foreground="{StaticResource DualBrush}" Opacity="0">
-                    <TextBlock.RenderTransform><TransformGroup><ScaleTransform ScaleX="1.14" /><TranslateTransform x:Name="DualShift" /></TransformGroup></TextBlock.RenderTransform>
-                </TextBlock>
-                <TextBlock x:Name="SenseText" Text="SENSE" Canvas.Left="735" Canvas.Top="339" FontFamily="{StaticResource Font.Display}"
-                           FontSize="460" Foreground="{StaticResource SenseBrush}" Opacity="0">
-                    <TextBlock.RenderTransform><TransformGroup><ScaleTransform ScaleX="1.14" /><TranslateTransform x:Name="SenseShift" /></TransformGroup></TextBlock.RenderTransform>
-                </TextBlock>
+                <!-- ═══════════ Décor ═══════════ -->
+                <!-- Halo de la couleur d'accent derrière la manette (suit un peu la souris) -->
+                <Ellipse x:Name="Glow" Canvas.Left="640" Canvas.Top="150" Width="820" Height="620" Opacity="0" IsHitTestVisible="False">
+                    <Ellipse.RenderTransform><TranslateTransform x:Name="GlowShift" /></Ellipse.RenderTransform>
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="{DynamicResource Color.Accent}" Offset="0" />
+                            <GradientStop Color="#00000000" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <!-- Petit halo citron en bas à gauche -->
+                <Ellipse x:Name="Glow2" Canvas.Left="-200" Canvas.Top="-260" Width="640" Height="560" Opacity="0" IsHitTestVisible="False">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#1FD4F53C" Offset="0" />
+                            <GradientStop Color="#00D4F53C" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
 
                 <!-- Grille de filets pointillés -->
                 <Canvas x:Name="Grid" Opacity="0" IsHitTestVisible="False">
-                    <Line X1="0" Y1="226" X2="1440" Y2="226" Style="{StaticResource Rule.H}" Stretch="None" />
-                    <Line X1="0" Y1="812" X2="1440" Y2="812" Style="{StaticResource Rule.H}" Stretch="None" />
-                    <Line X1="330" Y1="0" X2="330" Y2="900" Style="{StaticResource Rule.V}" Stretch="None" />
-                    <Line X1="1352" Y1="0" X2="1352" Y2="900" Style="{StaticResource Rule.V}" Stretch="None" />
-                    <Path Canvas.Left="1370" Canvas.Top="830" Data="M 0,11 L 7,0 L 14,11 Z M 0,26 L 7,15 L 14,26 Z M 0,41 L 7,30 L 14,41 Z" Fill="{DynamicResource Ink}" />
+                    <Line X1="0" Y1="118" X2="1440" Y2="118" Stroke="#17FFFFFF" StrokeDashArray="3 4" />
+                    <Line X1="0" Y1="790" X2="1440" Y2="790" Stroke="#17FFFFFF" StrokeDashArray="3 4" />
+                    <Line X1="96" Y1="0" X2="96" Y2="900" Stroke="#17FFFFFF" StrokeDashArray="3 4" />
+                    <Line X1="1344" Y1="0" X2="1344" Y2="900" Stroke="#17FFFFFF" StrokeDashArray="3 4" />
                 </Canvas>
 
-                <!-- Ombre portée douce sous la manette -->
-                <Ellipse x:Name="ControllerShadow" Canvas.Left="730" Canvas.Top="690" Width="580" Height="80" Opacity="0" RenderTransformOrigin="0.5,0.5">
-                    <Ellipse.RenderTransform><ScaleTransform x:Name="ShadowScale" /></Ellipse.RenderTransform>
-                    <Ellipse.Fill>
-                        <RadialGradientBrush>
-                            <GradientStop Color="#66181C2C" Offset="0" />
-                            <GradientStop Color="#00181C2C" Offset="1" />
-                        </RadialGradientBrush>
-                    </Ellipse.Fill>
-                    <Ellipse.Effect><BlurEffect Radius="24" /></Ellipse.Effect>
-                </Ellipse>
+                <!-- Typo fantôme derrière la manette : contour très discret -->
+                <TextBlock x:Name="GhostText" Text="DUALSENSE" Canvas.Left="452" Canvas.Top="300" FontFamily="{StaticResource Font.Display}" FontSize="230"
+                           Foreground="#0AFFFFFF" Opacity="0" IsHitTestVisible="False">
+                    <TextBlock.RenderTransform><TranslateTransform x:Name="GhostShift" /></TextBlock.RenderTransform>
+                </TextBlock>
 
-                <!-- Manette au premier plan (photo nette, de face) -->
-                <Viewbox x:Name="Controller" Canvas.Left="700" Canvas.Top="235" Width="644" Height="492" Opacity="0" RenderTransformOrigin="0.5,0.5">
-                    <Viewbox.Effect><DropShadowEffect Color="#181C2C" Direction="270" ShadowDepth="22" BlurRadius="48" Opacity="0.22" /></Viewbox.Effect>
-                    <Viewbox.RenderTransform>
+                <!-- ═══════════ Manette 3D ═══════════ -->
+                <ContentControl x:Name="ControllerHost" Canvas.Left="660" Canvas.Top="150" Width="760" Height="600" Opacity="0" Focusable="False"
+                                RenderTransformOrigin="0.5,0.5">
+                    <ContentControl.RenderTransform>
                         <TransformGroup>
                             <ScaleTransform x:Name="ControllerScale" />
-                            <RotateTransform x:Name="ControllerRotate" />
                             <TranslateTransform x:Name="ControllerShift" />
                         </TransformGroup>
-                    </Viewbox.RenderTransform>
-                    <Canvas Width="505" Height="386">
-                        <Path x:Name="LightbarGlowL" Data="M 162,45 C 166,75 171,100 180,118" Stroke="#4B57F5" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.5">
-                            <Path.Effect><BlurEffect Radius="12" /></Path.Effect>
-                        </Path>
-                        <Path x:Name="LightbarGlowR" Data="M 343,45 C 339,75 334,100 325,118" Stroke="#4B57F5" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.5">
-                            <Path.Effect><BlurEffect Radius="12" /></Path.Effect>
-                        </Path>
-                        <Image x:Name="Photo" Width="505" Height="386" RenderOptions.BitmapScalingMode="HighQuality" />
-                    </Canvas>
-                </Viewbox>
+                    </ContentControl.RenderTransform>
+                </ContentControl>
+                <TextBlock x:Name="DragHint" Text="Glissez la manette pour la faire tourner" Canvas.Left="900" Canvas.Top="752" FontFamily="{StaticResource Font.Sans}"
+                           FontSize="12" Foreground="#59FFFFFF" Opacity="0" IsHitTestVisible="False" />
 
-                <!-- Logo -->
-                <Canvas x:Name="Logo" Canvas.Left="79" Canvas.Top="128" Width="60" Height="56" Opacity="0" RenderTransformOrigin="0.5,0.5">
-                    <Canvas.RenderTransform><ScaleTransform x:Name="LogoScale" /></Canvas.RenderTransform>
-                    <Image Source="/Assets/logo.png" Width="52" Height="52" Canvas.Left="2" Canvas.Top="2" RenderOptions.BitmapScalingMode="HighQuality" />
-                </Canvas>
-
-                <!-- Menu + marque -->
-                <StackPanel x:Name="Nav" Orientation="Horizontal" Canvas.Left="925" Canvas.Top="136" Opacity="0">
+                <!-- ═══════════ Barre du haut ═══════════ -->
+                <StackPanel x:Name="Brand" Orientation="Horizontal" Canvas.Left="96" Canvas.Top="44" Opacity="0">
+                    <StackPanel.RenderTransform><TranslateTransform x:Name="BrandShift" /></StackPanel.RenderTransform>
+                    <Image Source="/Assets/logo.png" Width="40" Height="40" RenderOptions.BitmapScalingMode="HighQuality" />
+                    <TextBlock Text="se7en" FontFamily="{StaticResource Font.Brand}" FontSize="26" Foreground="White" VerticalAlignment="Center" Margin="14,-4,0,0" />
+                </StackPanel>
+                <StackPanel x:Name="Nav" Orientation="Horizontal" Canvas.Right="96" Canvas.Top="52" Opacity="0">
                     <StackPanel.RenderTransform><TranslateTransform x:Name="NavShift" /></StackPanel.RenderTransform>
                     <Button Style="{StaticResource NavLink}" Content="Calibration" Tag="calibration" Click="OnNavClick" />
                     <Button Style="{StaticResource NavLink}" Content="Mappage" Tag="mapping" Click="OnNavClick" />
-                    <Button Style="{StaticResource NavLink}" Content="Jeux" Tag="games" Click="OnNavClick" Margin="0,0,44,0" />
-                    <TextBlock Text="se7en" FontFamily="{StaticResource Font.Brand}" FontSize="26"
-                               Foreground="{DynamicResource Text.Primary}" VerticalAlignment="Center" Margin="0,-6,0,0" />
+                    <Button Style="{StaticResource NavLink}" Content="Jeux" Tag="games" Click="OnNavClick" Margin="0" />
                 </StackPanel>
 
-                <!-- Accroche -->
-                <TextBlock x:Name="Headline1" Text="Découvrez" Canvas.Left="160" Canvas.Top="428" FontFamily="{StaticResource Font.Sans}"
-                           FontWeight="Medium" FontSize="68" Foreground="{DynamicResource Text.Primary}" Opacity="0">
-                    <TextBlock.RenderTransform><TranslateTransform x:Name="Headline1Shift" /></TextBlock.RenderTransform>
-                </TextBlock>
-                <TextBlock x:Name="Headline2" Text="—DualSense" Canvas.Left="160" Canvas.Top="498" FontFamily="{StaticResource Font.Sans}"
-                           FontWeight="Medium" FontSize="68" Foreground="{DynamicResource Text.Primary}" Opacity="0">
-                    <TextBlock.RenderTransform><TranslateTransform x:Name="Headline2Shift" /></TextBlock.RenderTransform>
-                </TextBlock>
-                <TextBlock x:Name="Subtitle" Canvas.Left="162" Canvas.Top="604" FontFamily="{StaticResource Font.Sans}" FontSize="22" LineHeight="30"
-                           Foreground="{DynamicResource Text.Secondary}" Opacity="0">
-                    <TextBlock.RenderTransform><TranslateTransform x:Name="SubtitleShift" /></TextBlock.RenderTransform>
-                    <Run Text="Votre manette PS5, prête pour" /><LineBreak /><Run Text="tous vos jeux PC." />
-                </TextBlock>
-                <Button x:Name="ProfilesButton" Canvas.Left="160" Canvas.Top="692" Width="52" Height="52" Opacity="0" Click="OnNavClick" Tag="games"
-                        Cursor="Hand" FocusVisualStyle="{x:Null}" ToolTip="Profils">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="Bd" CornerRadius="26" BorderBrush="{DynamicResource Border.Strong}" BorderThickness="1" Background="Transparent">
-                                <c:AxisIcon x:Name="Ico" Data="{StaticResource Icon.Box}" Width="20" Height="20" Foreground="{DynamicResource Text.Primary}" />
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Ink}" />
-                                    <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource OnInk}" />
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
-                <Button x:Name="CtaButton" Style="{StaticResource Cta}" Content="Personnaliser" Canvas.Left="222" Canvas.Top="692"
-                        Click="OnCtaClick" Opacity="0" RenderTransformOrigin="0.5,0.5">
-                    <Button.RenderTransform><ScaleTransform x:Name="CtaScale" /></Button.RenderTransform>
-                </Button>
+                <!-- ═══════════ Accroche ═══════════ -->
+                <StackPanel x:Name="Copy" Canvas.Left="96" Canvas.Top="232" Width="560">
+                    <StackPanel x:Name="Overline" Orientation="Horizontal" Opacity="0">
+                        <StackPanel.RenderTransform><TranslateTransform x:Name="OverlineShift" /></StackPanel.RenderTransform>
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource Highlight}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <TextBlock Text="MANETTE PS5 · PC" FontFamily="{StaticResource Font.Sans}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Highlight}" />
+                    </StackPanel>
+                    <TextBlock x:Name="Headline1" Text="Votre DualSense," FontFamily="{StaticResource Font.Sans}" FontWeight="SemiBold" FontSize="64"
+                               Foreground="White" Margin="0,20,0,0" Opacity="0">
+                        <TextBlock.RenderTransform><TranslateTransform x:Name="Headline1Shift" /></TextBlock.RenderTransform>
+                    </TextBlock>
+                    <TextBlock x:Name="Headline2" FontFamily="{StaticResource Font.Sans}" FontWeight="SemiBold" FontSize="64" Opacity="0" Margin="0,-6,0,0">
+                        <TextBlock.RenderTransform><TranslateTransform x:Name="Headline2Shift" /></TextBlock.RenderTransform>
+                        <Run Text="dans " Foreground="White" /><Run Text="tous vos jeux." Foreground="{DynamicResource Highlight}" />
+                    </TextBlock>
+                    <TextBlock x:Name="Subtitle" FontFamily="{StaticResource Font.Sans}" FontSize="19" LineHeight="29" Foreground="#A6FFFFFF" TextWrapping="Wrap"
+                               Margin="0,22,0,0" Opacity="0" MaxWidth="470" HorizontalAlignment="Left"
+                               Text="Icônes PlayStation, anti-drift, profils par jeu : branchez la manette, jouez.">
+                        <TextBlock.RenderTransform><TranslateTransform x:Name="SubtitleShift" /></TextBlock.RenderTransform>
+                    </TextBlock>
 
-                <!-- Curseur décoratif : point + anneau qui suivent la souris -->
-                <Canvas x:Name="CursorLayer" IsHitTestVisible="False" Opacity="0">
-                    <Ellipse x:Name="CursorRing" Width="86" Height="86" Stroke="#C9CCD6" StrokeThickness="1.5" />
-                    <Ellipse x:Name="CursorDot" Width="32" Height="32" Fill="{DynamicResource Accent}" />
-                </Canvas>
+                    <!-- État de la manette, en direct -->
+                    <Border x:Name="Status" CornerRadius="16" Padding="14,8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1"
+                            HorizontalAlignment="Left" Margin="0,26,0,0" Opacity="0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#80FFFFFF" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock x:Name="StatusText" Text="En attente de la manette" FontFamily="{StaticResource Font.Sans}" FontSize="13" Foreground="#D9FFFFFF" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel x:Name="Actions" Orientation="Horizontal" Margin="0,30,0,0" Opacity="0">
+                        <StackPanel.RenderTransform><TranslateTransform x:Name="ActionsShift" /></StackPanel.RenderTransform>
+                        <Button x:Name="CtaButton" Style="{StaticResource Cta}" Content="Entrer" Click="OnCtaClick" />
+                        <Button Style="{StaticResource Ghost}" Content="Mes profils" Tag="games" Click="OnNavClick" Margin="12,0,0,0" />
+                        <TextBlock Text="ou Entrée" FontFamily="{StaticResource Font.Sans}" FontSize="12" Foreground="#59FFFFFF" VerticalAlignment="Center" Margin="18,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ═══════════ Points forts ═══════════ -->
+                <StackPanel x:Name="Features" Orientation="Horizontal" Canvas.Left="96" Canvas.Top="812" Opacity="0">
+                    <StackPanel.RenderTransform><TranslateTransform x:Name="FeaturesShift" /></StackPanel.RenderTransform>
+                    <Border Style="{StaticResource Feature}" Padding="0" Background="Transparent" BorderThickness="0" Width="220">
+                        <StackPanel Orientation="Horizontal">
+                            <c:AxisIcon Data="{StaticResource Icon.Target}" Width="18" Height="18" Foreground="{DynamicResource Highlight}" Margin="0,0,10,0" />
+                            <TextBlock Text="Anti-drift automatique" FontFamily="{StaticResource Font.Sans}" FontSize="14" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}" Padding="0" Background="Transparent" BorderThickness="0" Width="250">
+                        <StackPanel Orientation="Horizontal">
+                            <c:AxisIcon Data="{StaticResource Icon.Gamepad2}" Width="18" Height="18" Foreground="{DynamicResource Highlight}" Margin="0,0,10,0" />
+                            <TextBlock Text="DualShock 4, Xbox ou native" FontFamily="{StaticResource Font.Sans}" FontSize="14" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}" Padding="0" Background="Transparent" BorderThickness="0" Width="200">
+                        <StackPanel Orientation="Horizontal">
+                            <c:AxisIcon Data="{StaticResource Icon.Layers}" Width="18" Height="18" Foreground="{DynamicResource Highlight}" Margin="0,0,10,0" />
+                            <TextBlock Text="Un profil par jeu" FontFamily="{StaticResource Font.Sans}" FontSize="14" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}" Padding="0" Background="Transparent" BorderThickness="0" Width="220">
+                        <StackPanel Orientation="Horizontal">
+                            <c:AxisIcon Data="{StaticResource Icon.Vibrate}" Width="18" Height="18" Foreground="{DynamicResource Highlight}" Margin="0,0,10,0" />
+                            <TextBlock Text="Haptique et lumière" FontFamily="{StaticResource Font.Sans}" FontSize="14" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
 
                 <!-- ═══════════ Intro : « se7en DualSense » ═══════════ -->
                 <Grid x:Name="Intro" Width="1440" Height="900" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
@@ -186,12 +256,12 @@
                         <Rectangle x:Name="IntroLine" Height="3" Width="0" Margin="0,26,0,0" HorizontalAlignment="Center" RadiusX="1.5" RadiusY="1.5">
                             <Rectangle.Fill>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#004B57F5" Offset="0" />
-                                    <GradientStop Color="#FF4B57F5" Offset="0.5" />
-                                    <GradientStop Color="#004B57F5" Offset="1" />
+                                    <GradientStop Color="#00D4F53C" Offset="0" />
+                                    <GradientStop Color="#FFD4F53C" Offset="0.5" />
+                                    <GradientStop Color="#00D4F53C" Offset="1" />
                                 </LinearGradientBrush>
                             </Rectangle.Fill>
-                            <Rectangle.Effect><DropShadowEffect Color="#4B57F5" ShadowDepth="0" BlurRadius="16" Opacity="0.8" /></Rectangle.Effect>
+                            <Rectangle.Effect><DropShadowEffect Color="#D4F53C" ShadowDepth="0" BlurRadius="16" Opacity="0.8" /></Rectangle.Effect>
                         </Rectangle>
                     </StackPanel>
                 </Grid>
@@ -199,7 +269,7 @@
         </Viewbox>
 
         <!-- Indication pour passer l'intro -->
-        <TextBlock x:Name="SkipHint" Text="Cliquez pour passer" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Text.Tertiary}"
+        <TextBlock x:Name="SkipHint" Text="Cliquez pour passer" FontFamily="{StaticResource Font.Sans}" FontSize="12" Foreground="#80FFFFFF"
                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,24" IsHitTestVisible="False" />
     </Grid>
 </UserControl>
