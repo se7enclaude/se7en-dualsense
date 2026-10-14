@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -105,20 +106,84 @@ public static class DriverInstaller
         return ok;
     }
 
-    private static bool IsSignedByNefarius(string file)
+    /// <summary>
+    /// Signature Authenticode valide selon Windows (WinVerifyTrust : chaîne, intégrité du fichier et horodatage —
+    /// un installeur signé avant l'expiration du certificat reste valide) ET émise pour Nefarius.
+    /// </summary>
+    public static bool IsSignedByNefarius(string file)
     {
         try
         {
-#pragma warning disable SYSLIB0057 // API simple et suffisante pour lire le certificat Authenticode
+            if (!WinTrust.Verify(file)) return false;
+#pragma warning disable SYSLIB0057 // lecture du certificat du signataire
             using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(file));
 #pragma warning restore SYSLIB0057
-            using var chain = new X509Chain();
-            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-            return chain.Build(cert) && cert.Subject.Contains("Nefarius", StringComparison.OrdinalIgnoreCase);
+            return cert.Subject.Contains("Nefarius", StringComparison.OrdinalIgnoreCase);
         }
         catch
         {
             return false;
+        }
+    }
+
+    private static class WinTrust
+    {
+        private static Guid VerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct FileInfo
+        {
+            public int cbStruct;
+            public string pcwszFilePath;
+            public IntPtr hFile;
+            public IntPtr pgKnownSubject;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Data
+        {
+            public int cbStruct;
+            public IntPtr pPolicyCallbackData;
+            public IntPtr pSIPClientData;
+            public int dwUIChoice;
+            public int fdwRevocationChecks;
+            public int dwUnionChoice;
+            public IntPtr pFile;
+            public int dwStateAction;
+            public IntPtr hWVTStateData;
+            public IntPtr pwszURLReference;
+            public int dwProvFlags;
+            public int dwUIContext;
+            public IntPtr pSignatureSettings;
+        }
+
+        [DllImport("wintrust.dll", CharSet = CharSet.Unicode)]
+        private static extern int WinVerifyTrust(IntPtr hwnd, ref Guid action, ref Data data);
+
+        public static bool Verify(string path)
+        {
+            var info = new FileInfo { cbStruct = Marshal.SizeOf<FileInfo>(), pcwszFilePath = path };
+            IntPtr pInfo = Marshal.AllocHGlobal(Marshal.SizeOf<FileInfo>());
+            try
+            {
+                Marshal.StructureToPtr(info, pInfo, false);
+                var data = new Data
+                {
+                    cbStruct = Marshal.SizeOf<Data>(),
+                    dwUIChoice = 2,            // aucune interface
+                    fdwRevocationChecks = 0,
+                    dwUnionChoice = 1,         // fichier
+                    pFile = pInfo,
+                    dwStateAction = 0,
+                    dwProvFlags = 0x10,        // WTD_REVOCATION_CHECK_NONE : pas d'accès réseau
+                };
+                return WinVerifyTrust(IntPtr.Zero, ref VerifyV2, ref data) == 0;
+            }
+            finally
+            {
+                Marshal.DestroyStructure<FileInfo>(pInfo);
+                Marshal.FreeHGlobal(pInfo);
+            }
         }
     }
 }
