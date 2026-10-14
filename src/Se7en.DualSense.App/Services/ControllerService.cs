@@ -61,6 +61,8 @@ public sealed class ControllerService : IDisposable
     private readonly List<ControllerSlot> _slots = new();
     private ControllerSlot _selected;
     private ProcessWatcher? _watcher;
+    private GameFocusWatcher? _focus;
+    private bool _nativeFocusHinted;
     private string? _gameExe;
     private Timer? _slotTimer;
     private readonly DispatcherTimer _micTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
@@ -152,6 +154,8 @@ public sealed class ControllerService : IDisposable
             _selected.Output.Start();
             _watcher = new ProcessWatcher(Profiles);
             _watcher.GameChanged += (profile, exe) => OnUi(() => OnGameChanged(profile, exe));
+            _focus = new GameFocusWatcher(Profiles);
+            _focus.GameRefocused += OnGameRefocused;
             // Nouvelle manette branchée : une place de plus (vérification toutes les 2 s)
             _slotTimer = new Timer(_ => CheckForNewControllers(), null, 2000, 2000);
             _micTimer.Tick += (_, _) => PollMicrophone();
@@ -380,6 +384,25 @@ public sealed class ControllerService : IDisposable
             var selected = Profiles.Find(AppSettings.Current.SelectedProfileId) ?? Profiles.Default;
             Activate(selected, null);
             Notify?.Invoke("Jeu fermé", $"Retour au profil « {selected.Name} »", NotifyKind.Info);
+        }
+    }
+
+    /// <summary>Retour dans le jeu (Alt + Tab) : la manette virtuelle est rebranchée pour que le jeu la retrouve.</summary>
+    private void OnGameRefocused(string exe)
+    {
+        if (!AppSettings.Current.ReconnectOnFocus) return;
+        int replugged = Slots.Count(s => s.Device != null && s.Output.Replug());
+        if (replugged > 0)
+        {
+            Log?.Invoke($"Retour dans {exe} : manette rebranchée.");
+            return;
+        }
+        if (!_nativeFocusHinted && Slots.Any(s => s.Device != null && s.Output.Mode == OutputMode.Native))
+        {
+            _nativeFocusHinted = true;
+            Notify?.Invoke("Reconnexion après Alt + Tab",
+                "En mode DualSense native, le jeu lit la manette lui-même : se7en ne peut pas la rebrancher. Passez en DualShock 4 ou Xbox si le jeu la perd.",
+                NotifyKind.Info);
         }
     }
 
@@ -727,6 +750,7 @@ public sealed class ControllerService : IDisposable
         if (_screenSampling) ScreenSampler.Stop();
         _slotTimer?.Dispose();
         _watcher?.Dispose();
+        _focus?.Dispose();
         _audio.Dispose();
         DriftHistory.Flush();
         foreach (var s in Slots) s.Dispose();

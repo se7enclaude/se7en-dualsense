@@ -228,6 +228,32 @@ public sealed class OutputManager : IDisposable
         RequestApply();
     }
 
+    /// <summary>
+    /// Débranche puis rebranche la manette virtuelle, comme un câble qu'on remet : un jeu qui l'a perdue
+    /// (retour après Alt + Tab) la redécouvre. Faux s'il n'y a pas de manette virtuelle (mode natif, clavier / souris).
+    /// </summary>
+    public bool Replug()
+    {
+        if (_pad == null || _disposed) return false;
+        _ = Task.Run(async () =>
+        {
+            await _applyGate.WaitAsync();
+            try
+            {
+                if (_disposed) return;
+                DisposePad();
+            }
+            finally
+            {
+                _applyGate.Release();
+            }
+            // Laisse Windows et le jeu voir le débranchement avant le rebranchement
+            await Task.Delay(300);
+            await ApplyAsync();
+        });
+        return true;
+    }
+
     /// <summary>Les opérations HidHide lancent un processus : jamais sur le thread d'E/S ni l'UI.</summary>
     private void RequestApply() => _ = Task.Run(ApplyAsync);
 

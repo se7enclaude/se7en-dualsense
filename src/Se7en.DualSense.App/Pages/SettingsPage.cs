@@ -111,6 +111,12 @@ public sealed class SettingsPage : UserControl
             },
             new SettingRow
             {
+                Label = "Reconnexion au retour dans le jeu",
+                Description = "Après un Alt + Tab, la manette virtuelle est rebranchée dès que le jeu revient au premier plan, pour qu'il la retrouve. Modes DualShock 4 et Xbox.",
+                Control = Ui.Switch(S.ReconnectOnFocus, v => { S.ReconnectOnFocus = v; Save(); }),
+            },
+            new SettingRow
+            {
                 Label = "Associer une manette en Bluetooth",
                 Description = "Maintenez PS + Create jusqu'à ce que la barre lumineuse clignote, puis lancez la recherche.",
                 Control = Ui.Button("Associer", "Button.Secondary", (_, _) => PairBluetooth()),

@@ -167,6 +167,8 @@ public sealed class AppSettings
     public bool AutoCheckUpdates { get; set; } = true;
     /// <summary>Recentrage automatique des sticks quand la manette est posée.</summary>
     public bool AutoRecenter { get; set; } = true;
+    /// <summary>Manette virtuelle rebranchée quand on revient dans le jeu (Alt + Tab).</summary>
+    public bool ReconnectOnFocus { get; set; } = true;
     /// <summary>Profil fixe par manette (clé = adresse de la manette).</summary>
     public Dictionary<string, string> ControllerProfiles { get; set; } = new();
     /// <summary>Copie du son du PC dans le haut-parleur / casque de la manette (USB).</summary>
