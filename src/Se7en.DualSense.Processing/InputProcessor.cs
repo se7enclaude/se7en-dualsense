@@ -30,6 +30,9 @@ public sealed class InputProcessor
     private readonly TouchpadTracker _touch = new();
     private readonly PsShortcuts _ps = new();
     private readonly MacroRun[] _runs = new MacroRun[8];
+    private readonly FlickStick _flick = new();
+    private readonly AutoRecenter _recenter = new();
+    private double _testTurnRemaining;
 
     public ProcessingSettings Settings
     {
@@ -57,6 +60,12 @@ public sealed class InputProcessor
     public StickCalibration LeftCalibration => _leftCal;
     public StickCalibration RightCalibration => _rightCal;
 
+    /// <summary>Incrémenté quand le recentrage automatique a corrigé la calibration (à enregistrer).</summary>
+    public int AutoRecenterCount => _recenter.Adjustments;
+
+    /// <summary>Test du flick stick : fait faire un tour complet à la souris (vérifie « points par tour »).</summary>
+    public void RequestTestTurn() => _testTurnRemaining = 360;
+
     /// <summary>Traitement sans sortie clavier / souris (tests, aperçus).</summary>
     public void Process(in DualSenseState raw, out DualSenseState output)
     {
@@ -79,6 +88,14 @@ public sealed class InputProcessor
         var opt = _options;
         output = raw;
 
+        // ── Anti-drift continu : manette posée, sticks lâchés → le centre suit doucement ──
+        if (opt.AutoRecenter && raw.IsFullReport)
+        {
+            var (l, r) = _recenter.Step(raw, _leftCal, _rightCal, dt);
+            if (l != null) _leftCal = l;
+            if (r != null) _rightCal = r;
+        }
+
         // ── Sticks ──
         byte lx = raw.LeftX, ly = raw.LeftY, rx = raw.RightX, ry = raw.RightY;
         if (s.SwapSticks)
@@ -91,8 +108,20 @@ public sealed class InputProcessor
         output.L2 = StickMath.ProcessTrigger(raw.L2, s.L2);
         output.R2 = StickMath.ProcessTrigger(raw.R2, s.R2);
 
+        // ── Gyroscope → souris ──
+        if (s.Gyro.Enabled && s.Gyro.Output == GyroOutput.Mouse && raw.IsFullReport && GyroActive(s.Gyro.Activation, raw))
+        {
+            double yaw = -raw.GyroY / GyroUnitsPerDegree, pitch = -raw.GyroX / GyroUnitsPerDegree;
+            double dz = s.Gyro.Deadzone;
+            // Zone morte douce : les petits tremblements sont atténués, pas coupés net
+            yaw = Math.Abs(yaw) < dz ? yaw * Math.Abs(yaw) / Math.Max(dz, 0.01) * 0.5 : yaw;
+            pitch = Math.Abs(pitch) < dz ? pitch * Math.Abs(pitch) / Math.Max(dz, 0.01) * 0.5 : pitch;
+            actions.MouseDx += yaw * dt * s.Gyro.MouseSensitivity * (s.Gyro.InvertX ? -1 : 1);
+            actions.MouseDy += -pitch * dt * s.Gyro.MouseSensitivity * (s.Gyro.InvertY ? -1 : 1);
+        }
+
         // ── Gyroscope → stick droit ──
-        if (s.Gyro.Enabled && raw.IsFullReport && GyroActive(s.Gyro.Activation, raw))
+        if (s.Gyro.Enabled && s.Gyro.Output == GyroOutput.Stick && raw.IsFullReport && GyroActive(s.Gyro.Activation, raw))
         {
             double yaw = -raw.GyroY / GyroUnitsPerDegree;   // °/s, rotation horizontale
             double pitch = -raw.GyroX / GyroUnitsPerDegree; // °/s, rotation verticale
@@ -104,6 +133,20 @@ public sealed class InputProcessor
             double gy = pitch / 360.0 * 3 * s.Gyro.Sensitivity * (s.Gyro.InvertY ? -1 : 1);
             prx = Math.Clamp(prx + gx, -1, 1);
             pry = Math.Clamp(pry + gy, -1, 1);
+        }
+
+        // ── Flick stick (stick droit → rotation de la caméra à la souris) ──
+        if (s.FlickStick.Enabled)
+        {
+            actions.MouseDx += _flick.Step(prx, pry, s.FlickStick, dt);
+            prx = 0;
+            pry = 0;
+        }
+        if (_testTurnRemaining > 0)
+        {
+            double step = Math.Min(_testTurnRemaining, 360 * dt);
+            _testTurnRemaining -= step;
+            actions.MouseDx += step / 360 * s.FlickStick.CountsPer360;
         }
 
         // ── Sticks souris / molette / déplacement ──
@@ -194,6 +237,13 @@ public sealed class InputProcessor
         }
 
         output.Buttons = gamepad & ~DualSenseButtonGroups.Virtual;
+
+        if (opt.SuppressActions)
+        {
+            ulong system = actions.SystemTriggered;
+            actions = default;
+            actions.SystemTriggered = system;
+        }
     }
 
     private static bool GyroActive(GyroActivation a, in DualSenseState raw) => a switch
@@ -368,6 +418,8 @@ public sealed class PsShortcuts
         (DualSenseButtons.DpadUp, SystemAction.VolumeUp, "Volume +"),
         (DualSenseButtons.DpadDown, SystemAction.VolumeDown, "Volume −"),
         (DualSenseButtons.Circle, SystemAction.VolumeMute, "Couper le son"),
+        (DualSenseButtons.R3, SystemAction.OpenLauncher, "Lanceur de jeux"),
+        (DualSenseButtons.L3, SystemAction.ToggleKeyboard, "Clavier virtuel"),
         (DualSenseButtons.Cross, SystemAction.MediaPlayPause, "Lecture / pause"),
         (DualSenseButtons.DpadRight, SystemAction.MediaNext, "Piste suivante"),
         (DualSenseButtons.DpadLeft, SystemAction.MediaPrevious, "Piste précédente"),
@@ -420,6 +472,101 @@ public sealed class PsShortcuts
         if ((_passthrough && ps) || now < _pulseUntil)
             result |= DualSenseButtons.PS;
         return result;
+    }
+}
+
+/// <summary>Flick stick : direction du stick = direction de la caméra, convertie en mouvement de souris.</summary>
+public sealed class FlickStick
+{
+    private const double Engage = 0.9, Release = 0.7;
+    private bool _active;
+    private double _lastAngle, _pendingDegrees, _flickRate;
+
+    /// <summary>Renvoie le déplacement horizontal de la souris (points) pour ce rapport.</summary>
+    public double Step(double x, double y, FlickStickSettings s, double dt)
+    {
+        double mag = Math.Sqrt(x * x + y * y);
+        double degrees = 0;
+        if (mag >= Engage)
+        {
+            // 0° = stick vers le haut (devant), sens horaire positif
+            double angle = Math.Atan2(x, -y) * 180 / Math.PI;
+            if (!_active)
+            {
+                _active = true;
+                _pendingDegrees = angle;
+                _flickRate = s.FlickTime <= 0.001 ? double.MaxValue : Math.Abs(angle) / s.FlickTime;
+            }
+            else
+            {
+                double delta = angle - _lastAngle;
+                if (delta > 180) delta -= 360;
+                if (delta < -180) delta += 360;
+                degrees += delta;
+            }
+            _lastAngle = angle;
+        }
+        else if (mag < Release)
+        {
+            _active = false;
+        }
+
+        if (_pendingDegrees != 0)
+        {
+            double step = Math.Min(Math.Abs(_pendingDegrees), _flickRate * dt);
+            if (_flickRate == double.MaxValue) step = Math.Abs(_pendingDegrees);
+            degrees += Math.Sign(_pendingDegrees) * step;
+            _pendingDegrees -= Math.Sign(_pendingDegrees) * step;
+            if (Math.Abs(_pendingDegrees) < 1e-6) _pendingDegrees = 0;
+        }
+        return degrees / 360 * s.CountsPer360;
+    }
+}
+
+/// <summary>
+/// Anti-drift continu : quand la manette est posée (gyroscope immobile), qu'aucune commande n'est touchée et que
+/// les sticks sont parfaitement immobiles près du centre, le centre de calibration suit lentement leur position.
+/// </summary>
+public sealed class AutoRecenter
+{
+    private const double MaxOffset = 0.15;
+    private double _rest;
+    private double _lx, _ly, _rx, _ry, _var;
+    private double _sinceUpdate;
+    private bool _init;
+
+    public int Adjustments { get; private set; }
+
+    public (StickCalibration? Left, StickCalibration? Right) Step(in DualSenseState s, StickCalibration left, StickCalibration right, double dt)
+    {
+        double lx = StickMath.Normalize(s.LeftX), ly = StickMath.Normalize(s.LeftY);
+        double rx = StickMath.Normalize(s.RightX), ry = StickMath.Normalize(s.RightY);
+        if (!_init) { _lx = lx; _ly = ly; _rx = rx; _ry = ry; _init = true; }
+        double k = 1 - Math.Exp(-dt / 0.4);
+        double dev = Math.Abs(lx - _lx) + Math.Abs(ly - _ly) + Math.Abs(rx - _rx) + Math.Abs(ry - _ry);
+        _lx += (lx - _lx) * k; _ly += (ly - _ly) * k; _rx += (rx - _rx) * k; _ry += (ry - _ry) * k;
+        _var += (dev - _var) * k;
+
+        bool placed = Math.Abs(s.GyroX) < 48 && Math.Abs(s.GyroY) < 48 && Math.Abs(s.GyroZ) < 48;
+        bool untouched = s.Buttons == DualSenseButtons.None && s.L2 < 8 && s.R2 < 8 && !s.Touch0.Active;
+        bool still = _var < 0.03;
+        bool nearCenter = Math.Abs(_lx - left.CenterX) + Math.Abs(_ly - left.CenterY) < MaxOffset
+                          && Math.Abs(_rx - right.CenterX) + Math.Abs(_ry - right.CenterY) < MaxOffset;
+        _rest = placed && untouched && still && nearCenter ? _rest + dt : 0;
+        if (_rest < 2.5) return (null, null);
+
+        // Mise à jour 4 fois par seconde, convergence en ~3 s
+        _sinceUpdate += dt;
+        if (_sinceUpdate < 0.25) return (null, null);
+        double a = 1 - Math.Exp(-_sinceUpdate / 3);
+        _sinceUpdate = 0;
+        StickCalibration? newLeft = null, newRight = null;
+        if (Math.Abs(_lx - left.CenterX) + Math.Abs(_ly - left.CenterY) > 0.004)
+            newLeft = left with { CenterX = left.CenterX + (_lx - left.CenterX) * a, CenterY = left.CenterY + (_ly - left.CenterY) * a };
+        if (Math.Abs(_rx - right.CenterX) + Math.Abs(_ry - right.CenterY) > 0.004)
+            newRight = right with { CenterX = right.CenterX + (_rx - right.CenterX) * a, CenterY = right.CenterY + (_ry - right.CenterY) * a };
+        if (newLeft != null || newRight != null) Adjustments++;
+        return (newLeft, newRight);
     }
 }
 

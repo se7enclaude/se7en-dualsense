@@ -101,6 +101,8 @@ public static class Labels
         (SystemAction.ShowApp, "Ouvrir se7en DualSense"),
         (SystemAction.ToggleOverlay, "Overlay on / off"),
         (SystemAction.PowerOff, "Éteindre la manette"),
+        (SystemAction.OpenLauncher, "Lanceur de jeux"),
+        (SystemAction.ToggleKeyboard, "Clavier virtuel"),
     };
 
     public static string Describe(InputAction a, IEnumerable<Macro> macros) => a.Kind switch

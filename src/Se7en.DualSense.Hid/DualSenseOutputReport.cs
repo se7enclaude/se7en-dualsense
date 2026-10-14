@@ -18,6 +18,11 @@ public record struct DualSenseOutputState
     /// <summary>Effets de gâchettes adaptatives (null = ne pas piloter les gâchettes).</summary>
     public TriggerEffect? LeftTrigger;
     public TriggerEffect? RightTrigger;
+    /// <summary>
+    /// Haptique HD : les moteurs ne sont plus pilotés par ce rapport mais par le son envoyé à la manette
+    /// (canaux 3 et 4 de sa carte son USB).
+    /// </summary>
+    public bool AudioHaptics;
 
     public static DualSenseOutputState Default => new()
     {
@@ -104,7 +109,7 @@ public static class DualSenseOutputReport
             common = report.Slice(3, 47);
         }
 
-        common[Flag0] = Flag0CompatibleVibration | Flag0HapticsSelect;
+        common[Flag0] = state.AudioHaptics ? (byte)0 : (byte)(Flag0CompatibleVibration | Flag0HapticsSelect);
         common[Flag1] = Flag1LightbarEnable | Flag1PlayerLedEnable | Flag1MicMuteLedEnable;
         common[MotorRight] = state.LightMotor;
         common[MotorLeft] = state.HeavyMotor;

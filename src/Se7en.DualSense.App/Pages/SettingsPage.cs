@@ -105,6 +105,18 @@ public sealed class SettingsPage : UserControl
             PsShortcutList(),
             new SettingRow
             {
+                Label = "Anti-drift automatique",
+                Description = "Quand la manette est posée et que personne n'y touche, le centre des sticks est recalibré en douceur, sans rien lancer.",
+                Control = Ui.Switch(S.AutoRecenter, v => { S.AutoRecenter = v; Save(); App.Controller.ApplyGlobalOptions(); }),
+            },
+            new SettingRow
+            {
+                Label = "Associer une manette en Bluetooth",
+                Description = "Maintenez PS + Create jusqu'à ce que la barre lumineuse clignote, puis lancez la recherche.",
+                Control = Ui.Button("Associer", "Button.Secondary", (_, _) => PairBluetooth()),
+            },
+            new SettingRow
+            {
                 Label = "Alerte batterie faible",
                 Description = "Notification à 20 % puis à 10 %, même quand la fenêtre est fermée.",
                 Control = Ui.Switch(S.BatteryAlerts, v => { S.BatteryAlerts = v; Save(); }),
@@ -118,6 +130,46 @@ public sealed class SettingsPage : UserControl
                 Control = Ui.Button("Éteindre", "Button.Secondary", (_, _) => App.Controller.PowerOff()).With(b => b.IsEnabled = bluetooth.Count > 0),
                 Last = true,
             });
+
+        // ── Profil par manette ──
+        var slots = App.Controller.Slots.Where(x => x.Device != null).ToList();
+        if (slots.Count > 0)
+        {
+            var rows = new List<UIElement>();
+            foreach (var slot in slots)
+            {
+                var sl = slot;
+                var combo = new ComboBox { Width = 240 };
+                combo.Items.Add(new ComboBoxItem { Content = "Suivre le profil actif", Tag = "" });
+                foreach (var p in App.Controller.Profiles.All)
+                    combo.Items.Add(new ComboBoxItem { Content = p.Name + " · " + p.Mode.Label(), Tag = p.Id });
+                combo.SelectedItem = combo.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == (sl.OwnProfile?.Id ?? "")) ?? combo.Items[0];
+                combo.SelectionChanged += (_, _) =>
+                {
+                    string id = (string)((ComboBoxItem)combo.SelectedItem).Tag;
+                    App.Controller.AssignProfile(sl, id == "" ? null : App.Controller.Profiles.Find(id));
+                };
+                rows.Add(new SettingRow
+                {
+                    Label = $"{sl.Label} · {sl.Device!.DisplayName} ({sl.Device.ConnectionLabel})",
+                    Description = "Un profil fixe pour cette manette (ex. manette 2 en Xbox 360 pour un ami). Mémorisé pour cette manette.",
+                    Control = combo,
+                });
+            }
+            ((SettingRow)rows[^1]).Last = true;
+            Section("PROFIL PAR MANETTE", rows.ToArray());
+        }
+
+        // ── Sons ──
+        Section("SONS",
+            new SettingRow
+            {
+                Label = "Effets sonores",
+                Description = "Clics, bascules, carillons de connexion, notifications et intro.",
+                Control = Ui.Switch(S.Sounds, v => { S.Sounds = v; Save(); if (v) SoundService.Play(UiSound.Success); }),
+            },
+            Ui.Slider("Volume des effets", 0, 1, S.SoundVolume, Ui.Percent, v => { S.SoundVolume = v; Save(); }, 0.05)
+                .With(x => x.PreviewMouseLeftButtonUp += (_, _) => SoundService.Play(UiSound.Notify)));
 
         // ── Interface ──
         Section("INTERFACE",
@@ -295,6 +347,42 @@ public sealed class SettingsPage : UserControl
             panel.Children.Add(ring);
         }
         return panel;
+    }
+
+    private void PairBluetooth()
+    {
+        var cts = new CancellationTokenSource();
+        var body = new StackPanel { Width = 480 };
+        body.Children.Add(Ui.Text("BLUETOOTH", "Text.Overline", new Thickness(0, 0, 0, 10)));
+        body.Children.Add(Ui.Text("Associer une DualSense", "Text.H1", new Thickness(0, 0, 0, 10)));
+        body.Children.Add(Ui.Text("1. Débranchez le câble USB.\n2. Maintenez PS + Create (le petit bouton à gauche du pavé) jusqu'à ce que la barre lumineuse clignote rapidement.\n3. La recherche dure jusqu'à 30 secondes.",
+            "Text.Body", new Thickness(0, 0, 0, 16)));
+        var status = Ui.Text("Recherche…", "Text.Label");
+        body.Children.Add(status);
+        var progress = new ProgressBar { IsIndeterminate = true, Margin = new Thickness(0, 12, 0, 0) };
+        body.Children.Add(progress);
+        var actions = new DockPanel { Margin = new Thickness(0, 24, 0, 0), LastChildFill = false };
+        var close = Ui.Button("Annuler", "Button.Secondary", (_, _) => { cts.Cancel(); _shell.CloseModal(); });
+        actions.Children.Add(close);
+        body.Children.Add(actions);
+        _shell.ShowModal(body);
+        _ = Run();
+
+        async Task Run()
+        {
+            try
+            {
+                string result = await BluetoothPairing.PairAsync(new Progress<string>(m => status.Text = m), TimeSpan.FromSeconds(30), cts.Token);
+                status.Text = result;
+                SoundService.Play(result.StartsWith("Manette associée") ? UiSound.Success : UiSound.Notify);
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Association impossible : " + ex.Message;
+            }
+            progress.Visibility = Visibility.Collapsed;
+            close.Content = "Fermer";
+        }
     }
 
     private async Task CheckUpdatesAsync(Button button)

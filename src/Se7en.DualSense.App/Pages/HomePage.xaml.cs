@@ -244,6 +244,53 @@ public partial class HomePage : UserControl, ILivePage
 
     private void OnProfilesClick(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("games");
 
+    private void OnLauncherClick(object sender, RoutedEventArgs e) => LauncherWindow.Toggle();
+
+    // ───────────── Steam Input ─────────────
+
+    private DateTime _lastSteamCheck;
+
+    private async void RefreshSteamHint()
+    {
+        if (ControllerService.IsDemo || AppSettings.Current.SteamHintDismissed) { SteamCard.Visibility = Visibility.Collapsed; return; }
+        var status = await Task.Run(SteamInput.Detect);
+        var mode = App.Controller.ActiveProfile.Mode;
+        bool show = SteamInput.MayConflict(status, mode);
+        SteamCard.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        SteamText.Text = mode == OutputMode.Xbox360
+            ? "La prise en charge des manettes Xbox de Steam est active : dans un jeu Steam, elle peut doubler les appuis. Désactivez Steam Input pour ce jeu en cas de souci."
+            : "La prise en charge PlayStation de Steam peut capter la manette et doubler les appuis dans les jeux Steam. Désactivez-la, ou Steam Input pour ce jeu.";
+    }
+
+    private void OnSteamDismiss(object sender, RoutedEventArgs e)
+    {
+        AppSettings.Current.SteamHintDismissed = true;
+        AppSettings.Save();
+        SteamCard.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnSteamGuide(object sender, RoutedEventArgs e)
+    {
+        var shell = App.Shell;
+        if (shell == null) return;
+        var body = new StackPanel { Width = 540 };
+        body.Children.Add(Ui.Text("STEAM INPUT", "Text.Overline", new Thickness(0, 0, 0, 10)));
+        body.Children.Add(Ui.Text("Éviter les doubles appuis", "Text.H1", new Thickness(0, 0, 0, 12)));
+        body.Children.Add(Ui.Text(
+            "Steam peut « traduire » lui-même les manettes PlayStation et Xbox. Avec se7en, c'est inutile et cela peut doubler les appuis.\n\n" +
+            "Pour tous les jeux : Steam › Paramètres › Manette › « Prise en charge des manettes PlayStation » : Désactivé.\n\n" +
+            "Pour un seul jeu : clic droit sur le jeu dans la bibliothèque › Propriétés › Manette › « Désactiver Steam Input ».\n\n" +
+            "Astuce : en mode Xbox 360, gardez la prise en charge Xbox de Steam sur « Désactivé » ou sur la valeur par défaut.",
+            "Text.Body"));
+        var actions = new DockPanel { Margin = new Thickness(0, 24, 0, 0), LastChildFill = false };
+        actions.Children.Add(Ui.Button("Fermer", "Button.Secondary", (_, _) => shell.CloseModal()));
+        var open = Ui.Button("Ouvrir les réglages de Steam", "Button.Primary", (_, _) => { SteamInput.OpenSteamControllerSettings(); shell.CloseModal(); });
+        DockPanel.SetDock(open, Dock.Right);
+        actions.Children.Add(open);
+        body.Children.Add(actions);
+        shell.ShowModal(body);
+    }
+
     private void OnFixDriftClick(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("sticks");
 
     public void SetDriftAlert(bool drift)
@@ -256,6 +303,7 @@ public partial class HomePage : UserControl, ILivePage
     {
         ProfileBadge.Text = "Profil · " + profile.Name;
         SyncModeSelector(profile.Mode);
+        RefreshSteamHint();
     }
 
     private void OnCustomizeClick(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("sticks");
@@ -325,6 +373,16 @@ public partial class HomePage : UserControl, ILivePage
 
             if (s.IsFullReport)
                 SetStamp(s.BatteryPercent + "%");
+        }
+
+        // Autonomie restante et Steam : vérifiés toutes les 30 s
+        if (DateTime.UtcNow - _lastSteamCheck > TimeSpan.FromSeconds(30))
+        {
+            _lastSteamCheck = DateTime.UtcNow;
+            RefreshSteamHint();
+            var left = App.Controller.BatteryRemaining();
+            Stamp.Caption = s.Charging != ChargingState.Discharging ? (s.Charging == ChargingState.Full ? "CHARGÉE" : "EN CHARGE")
+                : left is { } t ? "≈ " + BatteryTracker.Format(t).ToUpperInvariant() : "BATTERIE";
         }
 
         if (_rateClock.ElapsedMilliseconds >= 1000)

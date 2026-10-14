@@ -103,6 +103,8 @@ public sealed class TrayService : IDisposable
             profiles.DropDownItems.Add(new Forms.ToolStripMenuItem(p.Name, null, (_, _) => c.SelectProfile(profile)) { Checked = c.ActiveProfile.Id == p.Id });
         }
         menu.Items.Add(profiles);
+        menu.Items.Add("Lanceur de jeux", null, (_, _) => Application.Current.Dispatcher.Invoke(Pages.LauncherWindow.Toggle));
+        menu.Items.Add("Clavier virtuel", null, (_, _) => Application.Current.Dispatcher.Invoke(Pages.KeyboardOverlay.Toggle));
         menu.Items.Add(new Forms.ToolStripMenuItem("Mode bureau (clavier / souris)", null, (_, _) => c.ToggleDesktopMode())
         {
             Checked = c.ActiveProfile.Id == Profile.DesktopId,

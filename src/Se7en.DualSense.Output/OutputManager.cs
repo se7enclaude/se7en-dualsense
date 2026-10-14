@@ -34,6 +34,10 @@ public sealed class OutputManager : IDisposable
     private GameFeedback? _lastGame;
     private int _battery = 100;
     private bool _micMuted;
+    private (byte R, byte G, byte B)? _lightbarOverride;
+    private TriggerEffect? _leftPulse, _rightPulse;
+    private Timer? _pulseTimer;
+    private (byte Heavy, byte Light) _lastRumble;
     private byte _audioHeavy, _audioLight;
     private readonly KeyboardMouseEmitter _emitter = new();
     private volatile bool _emitActions;
@@ -58,6 +62,27 @@ public sealed class OutputManager : IDisposable
         set { _playerOverride = value; ComposeOutput(); }
     }
     private int? _playerOverride;
+
+    /// <summary>Vibrations du jeu (après intensité) : servent à l'haptique HD et aux effets.</summary>
+    public event Action<byte, byte>? GameRumbleChanged;
+
+    /// <summary>Couleur imposée par un effet animé (arc-en-ciel, musique, écran…), null = couleur du profil.</summary>
+    public void SetLightbarOverride((byte R, byte G, byte B)? color)
+    {
+        if (color == _lightbarOverride) return;
+        _lightbarOverride = color;
+        ComposeOutput();
+    }
+
+    /// <summary>Gâchette qui vibre brièvement (son fort pendant un tir).</summary>
+    public void PulseTrigger(bool left, int milliseconds)
+    {
+        var effect = TriggerEffect.Vibration(0.55, 1, 0.05);
+        if (left) _leftPulse = effect; else _rightPulse = effect;
+        ComposeOutput();
+        _pulseTimer?.Dispose();
+        _pulseTimer = new Timer(_ => { _leftPulse = _rightPulse = null; ComposeOutput(); }, null, milliseconds, Timeout.Infinite);
+    }
 
     /// <summary>LED du bouton micro : allumée quand le micro de Windows est coupé.</summary>
     public void SetMicrophoneMuted(bool muted)
@@ -136,19 +161,28 @@ public sealed class OutputManager : IDisposable
                 (r, g, b) = (f.Red, f.Green, f.Blue);
                 break;
         }
+        if (_lightbarOverride is { } o && f.Lightbar is LightbarMode.Rainbow or LightbarMode.Breathing or LightbarMode.Music or LightbarMode.Screen)
+            (r, g, b) = o;
         double br = Math.Clamp(f.Brightness, 0, 1);
+        byte heavy = (byte)Math.Clamp((game?.HeavyMotor ?? 0) * k, 0, 255), light = (byte)Math.Clamp((game?.LightMotor ?? 0) * k, 0, 255);
+        if ((heavy, light) != _lastRumble)
+        {
+            _lastRumble = (heavy, light);
+            GameRumbleChanged?.Invoke(heavy, light);
+        }
 
         var output = new DualSenseOutputState
         {
-            HeavyMotor = (byte)Math.Max(Math.Clamp((game?.HeavyMotor ?? 0) * k, 0, 255), _audioHeavy),
-            LightMotor = (byte)Math.Max(Math.Clamp((game?.LightMotor ?? 0) * k, 0, 255), _audioLight),
+            HeavyMotor = Math.Max(heavy, _audioHeavy),
+            LightMotor = Math.Max(light, _audioLight),
+            AudioHaptics = f.AudioRumble == AudioRumbleMode.Haptics,
             MuteLed = _micMuted,
             LightbarRed = (byte)(r * br),
             LightbarGreen = (byte)(g * br),
             LightbarBlue = (byte)(b * br),
             PlayerLeds = (_playerOverride ?? f.PlayerNumber) switch { 2 => 0x0A, 3 => 0x15, 4 => 0x1B, _ => 0x04 },
-            LeftTrigger = f.LeftTrigger.ToEffect(),
-            RightTrigger = f.RightTrigger.ToEffect(),
+            LeftTrigger = _leftPulse ?? f.LeftTrigger.ToEffect(),
+            RightTrigger = _rightPulse ?? f.RightTrigger.ToEffect(),
         };
         _connection.SetOutput(output);
     }

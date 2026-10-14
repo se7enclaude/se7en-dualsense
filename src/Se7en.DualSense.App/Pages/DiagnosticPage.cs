@@ -90,6 +90,19 @@ public sealed class DiagnosticPage : UserControl, ILivePage
         root.Children.Add(Ui.Card(history, new Thickness(0, 16, 0, 0), 20));
         Loaded += (_, _) => RefreshHistory();
 
+        // ── Batterie ──
+        var battery = new StackPanel();
+        var bhead = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        _batteryLeft = Ui.Text("—", "Text.Readout");
+        DockPanel.SetDock(_batteryLeft, Dock.Right);
+        bhead.Children.Add(_batteryLeft);
+        bhead.Children.Add(Ui.Text("BATTERIE · 24 H", "Text.Overline"));
+        battery.Children.Add(bhead);
+        battery.Children.Add(Ui.Text("Charge de la manette au fil du temps (vert : en charge). L'autonomie restante est estimée d'après la décharge en cours.",
+            "Text.Caption", new Thickness(0, 0, 0, 14)));
+        battery.Children.Add(_battery);
+        root.Children.Add(Ui.Card(battery, new Thickness(0, 16, 0, 0), 20));
+
         // ── Rapport brut ──
         var raw = new StackPanel();
         raw.Children.Add(Ui.Text("RAPPORT BRUT", "Text.Overline", new Thickness(0, 0, 0, 10)));
@@ -105,8 +118,14 @@ public sealed class DiagnosticPage : UserControl, ILivePage
     private readonly DriftHistoryChart _history = new() { Height = 200 };
     private TextBlock _historyCaption = null!;
 
+    private readonly BatteryChart _battery = new() { Height = 150 };
+    private TextBlock _batteryLeft = null!;
+
     private void RefreshHistory()
     {
+        _battery.SetData(BatteryTracker.Get(App.Controller.Device?.Identity));
+        var left = App.Controller.BatteryRemaining();
+        _batteryLeft.Text = left is { } t ? "autonomie ≈ " + BatteryTracker.Format(t) : "autonomie : mesure en cours";
         var days = DriftHistory.Get(App.Controller.Device?.Identity);
         _history.SetData(days);
         _historyCaption.Text = days.Count == 0

@@ -85,7 +85,15 @@ public partial class MainWindow : Window, IShell
         c.Log += _home.ShowLog;
         c.ActiveProfileChanged += OnProfileChanged;
         c.ProfileUpdated += OnProfileChanged;
-        c.Notify += (title, message, kind) => { if (AppSettings.Current.NotifyOnConnect || kind == NotifyKind.Warning) Toast(title, message, kind); };
+        c.Notify += (title, message, kind) =>
+        {
+            if (AppSettings.Current.NotifyOnConnect || kind == NotifyKind.Warning) Toast(title, message, kind);
+            // Carillons de connexion / déconnexion
+            if (title.Contains("connectée") && !title.Contains("déconnectée")) SoundService.Play(UiSound.Connect);
+            else if (title.Contains("déconnectée")) SoundService.Play(UiSound.Disconnect);
+        };
+        c.LauncherRequested += LauncherWindow.Toggle;
+        c.KeyboardRequested += KeyboardOverlay.Toggle;
         c.ControllersChanged += RefreshSlotChips;
         c.ShowAppRequested += ShowFromTray;
         c.OverlayToggleRequested += () =>
@@ -109,7 +117,9 @@ public partial class MainWindow : Window, IShell
 
         if (!ControllerService.IsDemo)
             _tray = new TrayService(ShowFromTray, Quit);
-        if (App.StartPage != null)
+        if (App.StartPage is "launcher" or "keyboard")
+            Dispatcher.BeginInvoke(App.StartPage == "launcher" ? LauncherWindow.Toggle : KeyboardOverlay.Toggle, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        else if (App.StartPage != null)
             Dispatcher.BeginInvoke(() => Navigate(App.StartPage), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         UpdateOverlay();
         if (!ControllerService.IsDemo)
@@ -279,7 +289,12 @@ public partial class MainWindow : Window, IShell
 
     private void OnVeilMouseDown(object sender, MouseButtonEventArgs e) { /* volontairement modal : fermeture par les boutons */ }
 
-    public void Toast(string title, string message, NotifyKind kind = NotifyKind.Info) => Toasts.Show(title, message, kind);
+    public void Toast(string title, string message, NotifyKind kind = NotifyKind.Info)
+    {
+        Toasts.Show(title, message, kind);
+        if (!title.Contains("connectée"))
+            SoundService.Play(kind switch { NotifyKind.Success => UiSound.Success, NotifyKind.Warning => UiSound.Warning, _ => UiSound.Notify });
+    }
 
     public void SetDriftAlert(bool drift)
     {
@@ -347,6 +362,7 @@ public partial class MainWindow : Window, IShell
             focused.MoveFocus(new TraversalRequest(dir));
         }
 
+        if ((pressed & (DualSenseButtons.DpadUp | DualSenseButtons.DpadDown | DualSenseButtons.DpadLeft | DualSenseButtons.DpadRight)) != 0) SoundService.Tick();
         if ((pressed & DualSenseButtons.DpadUp) != 0) Move(FocusNavigationDirection.Up);
         if ((pressed & DualSenseButtons.DpadDown) != 0) Move(FocusNavigationDirection.Down);
         if ((pressed & DualSenseButtons.DpadLeft) != 0) Move(FocusNavigationDirection.Left);

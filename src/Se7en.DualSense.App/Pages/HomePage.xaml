@@ -22,6 +22,28 @@
             </Grid>
         </ContentControl>
 
+        <!-- ───────────── Steam Input : risque de conflit ───────────── -->
+        <ContentControl x:Name="SteamCard" Style="{StaticResource Card}" Padding="20" Margin="0,0,0,20" Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource Accent.Soft}" VerticalAlignment="Center">
+                    <c:AxisIcon Data="{StaticResource Icon.Gamepad2}" Width="18" Height="18" Foreground="{DynamicResource Accent}" />
+                </Border>
+                <StackPanel Grid.Column="1" Margin="16,0,16,0" VerticalAlignment="Center">
+                    <TextBlock Text="Steam est ouvert" Style="{StaticResource Text.Base}" FontWeight="SemiBold" />
+                    <TextBlock x:Name="SteamText" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource Button.Secondary}" Content="Masquer" Click="OnSteamDismiss" Margin="0,0,8,0" />
+                    <Button Style="{StaticResource Button.Primary}" Content="Comment faire" Click="OnSteamGuide" />
+                </StackPanel>
+            </Grid>
+        </ContentControl>
+
         <!-- ───────────── Alerte : drift détecté ───────────── -->
         <ContentControl x:Name="DriftCard" Style="{StaticResource Card}" Padding="20" Margin="0,0,0,20" Visibility="Collapsed">
             <Grid>
@@ -91,6 +113,10 @@
                     <StackPanel Orientation="Horizontal">
                         <Button Style="{StaticResource IconButton.Outline}" ToolTip="Profils" Click="OnProfilesClick" Margin="0,0,8,0">
                             <c:AxisIcon Data="{StaticResource Icon.Box}" Width="18" Height="18"
+                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                        </Button>
+                        <Button Style="{StaticResource IconButton.Outline}" ToolTip="Lanceur de jeux plein écran (PS + R3)" Click="OnLauncherClick" Margin="0,0,8,0">
+                            <c:AxisIcon Data="{StaticResource Icon.LibraryBig}" Width="18" Height="18"
                                         Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                         </Button>
                         <Button Height="46" Padding="24,0" Cursor="Hand" FocusVisualStyle="{x:Null}" Click="OnCustomizeClick">

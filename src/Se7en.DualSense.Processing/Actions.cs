@@ -44,6 +44,8 @@ public enum SystemAction
     MediaPrevious,
     PowerOff,
     ToggleDesktopMode,
+    OpenLauncher,
+    ToggleKeyboard,
 }
 
 /// <summary>
@@ -137,6 +139,19 @@ public sealed record MouseSettings
     public double ScrollSpeed { get; init; } = 1;
 }
 
+/// <summary>
+/// « Flick stick » (jeux de tir à la souris) : pousser le stick droit tourne instantanément la caméra
+/// dans cette direction, puis le faire tourner fait pivoter la caméra d'autant.
+/// </summary>
+public sealed record FlickStickSettings
+{
+    public bool Enabled { get; init; }
+    /// <summary>Mouvement de souris (en points) qui fait faire un tour complet dans le jeu.</summary>
+    public double CountsPer360 { get; init; } = 3600;
+    /// <summary>Durée du « flick » (s) : 0 = instantané.</summary>
+    public double FlickTime { get; init; } = 0.1;
+}
+
 /// <summary>Options globales de l'application appliquées au traitement (indépendantes du profil).</summary>
 public sealed record GlobalInputOptions
 {
@@ -144,6 +159,10 @@ public sealed record GlobalInputOptions
     public bool PsShortcuts { get; init; } = true;
     /// <summary>Le bouton micro coupe / rétablit le micro de Windows.</summary>
     public bool MuteControlsMicrophone { get; init; } = true;
+    /// <summary>Recentrage automatique des sticks quand la manette est posée (anti-drift continu).</summary>
+    public bool AutoRecenter { get; init; } = true;
+    /// <summary>Clavier virtuel ou lanceur ouvert : la manette ne produit plus d'actions clavier / souris.</summary>
+    public bool SuppressActions { get; init; }
 
     public static GlobalInputOptions Default { get; } = new();
 }

@@ -67,6 +67,7 @@ public partial class App : Application
         else
             ThemeManager.ApplyAccent();
         UpdateService.CleanupPreviousVersion();
+        SoundService.Install();
 
         Controller = new ControllerService();
         Controller.Start();

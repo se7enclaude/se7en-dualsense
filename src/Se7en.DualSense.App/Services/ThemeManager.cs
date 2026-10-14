@@ -165,6 +165,18 @@ public sealed class AppSettings
     public bool MuteControlsMicrophone { get; set; } = true;
     public bool BatteryAlerts { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;
+    /// <summary>Recentrage automatique des sticks quand la manette est posée.</summary>
+    public bool AutoRecenter { get; set; } = true;
+    /// <summary>Profil fixe par manette (clé = adresse de la manette).</summary>
+    public Dictionary<string, string> ControllerProfiles { get; set; } = new();
+    /// <summary>Copie du son du PC dans le haut-parleur / casque de la manette (USB).</summary>
+    public bool MirrorSoundToController { get; set; }
+    public double MirrorVolume { get; set; } = 0.8;
+    /// <summary>Effets sonores de l'interface.</summary>
+    public bool Sounds { get; set; } = true;
+    public double SoundVolume { get; set; } = 0.5;
+    /// <summary>Bandeau Steam Input masqué par l'utilisateur.</summary>
+    public bool SteamHintDismissed { get; set; }
     public DateTime LastUpdateCheck { get; set; }
     /// <summary>Version proposée que l'utilisateur a choisi d'ignorer.</summary>
     public string? SkippedVersion { get; set; }

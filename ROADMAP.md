@@ -64,3 +64,17 @@ Légende : ✅ fait · 🧪 fait, à tester en jeu · ⬜ à faire
 - Haptique HD et gâchettes adaptatives **envoyées par le jeu** en mode DS4 / Xbox : le jeu ne les produit que pour une vraie DualSense → mode natif.
 - DualSense virtuelle : nécessiterait un pilote signé par Microsoft.
 - Certains anti-triche bloquent les manettes virtuelles ou les entrées clavier / souris simulées.
+
+## Version 0.6
+- ✅ Gyroscope en souris · flick stick (points par tour, durée, test d'un tour)
+- ✅ Anti-drift automatique continu (manette posée, gyroscope immobile, sticks lâchés)
+- 🧪 Haptique HD depuis le son (USB : canaux 3-4 de la carte son de la manette) + vibrations du jeu synthétisées
+- 🧪 Son vers la manette : copie du son du PC, manette / micro de la manette comme périphériques Windows
+- 🧪 Gâchettes réactives au son (sons forts pendant que L2 / R2 sont pressées)
+- ✅ Barre lumineuse : arc-en-ciel, respiration, musique, couleurs de l'écran (ambilight)
+- ✅ Lanceur de jeux plein écran à la manette (Steam, Epic, Rockstar) · clavier virtuel AZERTY à la manette
+- 🧪 Association Bluetooth depuis l'application
+- ✅ Profil par manette · autonomie restante estimée et historique de batterie · détection des conflits Steam Input
+- ✅ Effets sonores de l'interface (clics, bascules, carillons, notifications, intro)
+- ✅ 62 tests unitaires
+- ✖ Non retenu : anti-recul (triche en ligne), interface en anglais, signature numérique

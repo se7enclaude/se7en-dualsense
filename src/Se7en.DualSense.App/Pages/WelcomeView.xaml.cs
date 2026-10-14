@@ -1,3 +1,4 @@
+using Se7en.DualSense.App.Services;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -40,7 +41,11 @@ public partial class WelcomeView : UserControl
         InitializeComponent();
         LoadPhoto();
         BuildIntroTitle();
-        Loaded += (_, _) => Start();
+        Loaded += (_, _) =>
+        {
+            Start();
+            if (Visibility == Visibility.Visible) SoundService.Play(UiSound.Intro);
+        };
         Unloaded += (_, _) => Stop();
         PreviewMouseDown += OnPreviewMouseDown;
         PreviewKeyDown += OnPreviewKeyDown;

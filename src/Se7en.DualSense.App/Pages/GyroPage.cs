@@ -57,10 +57,18 @@ public sealed class GyroPage : UserControl, ILivePage
             Description = "Incliner la manette déplace la caméra, en plus du stick droit.",
             Control = Ui.Switch(G.Enabled, v => Set(G with { Enabled = v })),
         });
+        settings.Children.Add(Ui.Text("LE GYROSCOPE PILOTE", "Text.Overline", new Thickness(0, 18, 0, 8)));
+        settings.Children.Add(Ui.Segmented(new[] { "Le stick droit", "La souris" }, (int)G.Output, i => { Set(G with { Output = (GyroOutput)i }); Build(); }));
+        settings.Children.Add(Ui.Text(G.Output == GyroOutput.Mouse
+            ? "Souris : précision maximale pour les jeux de tir PC (au clavier / souris). Inactif en mode DualSense native."
+            : "Stick droit : fonctionne dans tous les jeux à la manette.", "Text.Caption", new Thickness(0, 8, 0, 0)));
         settings.Children.Add(Ui.Text("ACTIVATION", "Text.Overline", new Thickness(0, 18, 0, 8)));
         settings.Children.Add(Ui.Segmented(new[] { "Toujours", "En visant (L2)", "Avec R1" }, (int)G.Activation, i => Set(G with { Activation = (GyroActivation)i })));
         var sliders = new StackPanel { Margin = new Thickness(0, 20, 0, 0) };
-        sliders.Children.Add(Ui.Slider("Sensibilité", 0.2, 5, G.Sensitivity, v => v.ToString("0.0", CultureInfo.InvariantCulture) + " ×", v => Set(G with { Sensitivity = v }), 0.1));
+        if (G.Output == GyroOutput.Mouse)
+            sliders.Children.Add(Ui.Slider("Sensibilité souris", 1, 60, G.MouseSensitivity, v => v.ToString("0", CultureInfo.InvariantCulture) + " px/°", v => Set(G with { MouseSensitivity = v }), 1));
+        else
+            sliders.Children.Add(Ui.Slider("Sensibilité", 0.2, 5, G.Sensitivity, v => v.ToString("0.0", CultureInfo.InvariantCulture) + " ×", v => Set(G with { Sensitivity = v }), 0.1));
         sliders.Children.Add(Ui.Slider("Zone morte", 0, 6, G.Deadzone, v => v.ToString("0.0", CultureInfo.InvariantCulture) + " °/s", v => Set(G with { Deadzone = v }), 0.1,
             "Ignore les tremblements de la main"));
         settings.Children.Add(sliders);
@@ -93,6 +101,45 @@ public sealed class GyroPage : UserControl, ILivePage
         grid.Children.Add(liveCard);
 
         _root.Children.Add(grid);
+        _root.Children.Add(FlickCard());
+    }
+
+    private FlickStickSettings Flick => App.Controller.ActiveProfile.Processing.FlickStick;
+
+    private void SetFlick(FlickStickSettings f)
+    {
+        var p = App.Controller.ActiveProfile.Processing with { FlickStick = f };
+        App.Controller.PreviewProcessing(p);
+        var profile = App.Controller.ActiveProfile with { Processing = p };
+        _save.Run(() => App.Controller.UpdateProfile(profile));
+    }
+
+    /// <summary>Flick stick : le stick droit oriente la caméra (jeux de tir à la souris), avec le gyroscope pour viser.</summary>
+    private FrameworkElement FlickCard()
+    {
+        var f = Flick;
+        var panel = new StackPanel();
+        panel.Children.Add(new SettingRow
+        {
+            Label = "Flick stick",
+            Description = "Pousser le stick droit tourne instantanément la caméra dans cette direction ; le faire tourner fait pivoter la caméra. " +
+                          "À combiner avec le gyroscope en souris pour viser. Pour les jeux de tir au clavier / souris.",
+            Control = Ui.Switch(f.Enabled, v => { SetFlick(Flick with { Enabled = v }); Build(); }),
+            Last = !f.Enabled,
+        });
+        if (f.Enabled)
+        {
+            panel.Children.Add(Ui.Slider("Points de souris pour un tour complet", 500, 20000, f.CountsPer360, v => v.ToString("0", CultureInfo.InvariantCulture),
+                v => SetFlick(Flick with { CountsPer360 = v }), 50,
+                "Dépend du jeu et de sa sensibilité : réglez jusqu'à ce que le test fasse exactement un tour.").WithMargin(new Thickness(0, 16, 0, 0)));
+            panel.Children.Add(Ui.Slider("Durée du flick", 0, 0.3, f.FlickTime, v => (v * 1000).ToString("0", CultureInfo.InvariantCulture) + " ms",
+                v => SetFlick(Flick with { FlickTime = v }), 0.01));
+            panel.Children.Add(Ui.Button("Tester : faire un tour complet", "Button.Secondary", (_, _) =>
+            {
+                foreach (var s in App.Controller.Slots) s.Output.Processor.RequestTestTurn();
+            }));
+        }
+        return Ui.Card(panel, new Thickness(0, 16, 0, 0), 20);
     }
 
     public void Update(in FrameData frame)

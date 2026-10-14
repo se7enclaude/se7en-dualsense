@@ -73,9 +73,21 @@ public enum GyroActivation
     WhileR1,
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum GyroOutput
+{
+    /// <summary>Ajouté au stick droit de la manette virtuelle.</summary>
+    Stick,
+    /// <summary>Déplace la souris (jeux de tir au clavier / souris) : précision maximale.</summary>
+    Mouse,
+}
+
 public sealed record GyroSettings
 {
     public bool Enabled { get; init; }
+    public GyroOutput Output { get; init; } = GyroOutput.Stick;
+    /// <summary>Souris : pixels par degré de rotation de la manette.</summary>
+    public double MouseSensitivity { get; init; } = 12;
     public GyroActivation Activation { get; init; } = GyroActivation.WhileAiming;
     /// <summary>Multiplicateur de sensibilité (0.1-5).</summary>
     public double Sensitivity { get; init; } = 1;
@@ -115,6 +127,7 @@ public sealed record ProcessingSettings
     public Dictionary<DualSenseButtons, InputAction> ShiftActions { get; init; } = new();
 
     public TouchpadSettings Touchpad { get; init; } = new();
+    public FlickStickSettings FlickStick { get; init; } = new();
     public MouseSettings Mouse { get; init; } = new();
     public List<Macro> Macros { get; init; } = new();
 

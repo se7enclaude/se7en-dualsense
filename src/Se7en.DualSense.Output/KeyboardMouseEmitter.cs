@@ -80,6 +80,18 @@ public sealed class KeyboardMouseEmitter
         SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf<INPUT>());
     }
 
+    /// <summary>Tape un caractère quelle que soit la disposition du clavier (saisie Unicode).</summary>
+    public static void TypeChar(char c)
+    {
+        const uint Unicode = 0x0004, KeyUp = 0x0002;
+        var inputs = new[]
+        {
+            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wScan = c, dwFlags = Unicode } } },
+            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wScan = c, dwFlags = Unicode | KeyUp } } },
+        };
+        SendInput(2, inputs, Marshal.SizeOf<INPUT>());
+    }
+
     private void SendButton(MouseButtonFlags flag, MouseButtonFlags now, uint down, uint up, uint xButton)
     {
         bool was = (_buttons & flag) != 0, isDown = (now & flag) != 0;

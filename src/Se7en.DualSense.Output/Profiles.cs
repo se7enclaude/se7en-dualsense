@@ -15,6 +15,14 @@ public enum LightbarMode
     /// <summary>Vert → orange → rouge selon la batterie.</summary>
     Battery,
     Off,
+    /// <summary>Arc-en-ciel qui défile.</summary>
+    Rainbow,
+    /// <summary>Respiration de la couleur personnalisée.</summary>
+    Breathing,
+    /// <summary>Pulse au rythme du son de Windows.</summary>
+    Music,
+    /// <summary>Reprend les couleurs du bord de l'écran (ambilight).</summary>
+    Screen,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -25,6 +33,8 @@ public enum AudioRumbleMode
     Bass,
     /// <summary>Tout le son : basses → gros moteur, médiums → petit moteur.</summary>
     Full,
+    /// <summary>Haptique HD (USB) : le son pilote directement les actionneurs de la DualSense.</summary>
+    Haptics,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -72,6 +82,10 @@ public sealed record FeedbackSettings
     /// <summary>Vibrations générées depuis le son de Windows (utile pour les jeux sans vibrations).</summary>
     public AudioRumbleMode AudioRumble { get; init; } = AudioRumbleMode.Off;
     public double AudioRumbleIntensity { get; init; } = 1;
+    /// <summary>Gâchettes qui vibrent sur les sons forts (tirs) pendant qu'on les presse.</summary>
+    public bool AudioTriggers { get; init; }
+    /// <summary>Vitesse des effets de la barre lumineuse (0.2-3).</summary>
+    public double EffectSpeed { get; init; } = 1;
 }
 
 /// <summary>Profil : un réglage complet, éventuellement associé à des jeux (exécutables).</summary>
@@ -122,7 +136,7 @@ public sealed record Profile
                 [DualSenseButtons.Options] = InputAction.ForKeys(0x5B),         // Windows
                 [DualSenseButtons.Create] = InputAction.ForKeys(0x5B, 0x09),    // Windows + Tab
                 [DualSenseButtons.R3] = InputAction.ForMouse(MouseAction.MiddleClick),
-                [DualSenseButtons.L3] = InputAction.ForKeys(0x5B, 0xA2, 0x4F),  // Win + Ctrl + O : clavier visuel
+                [DualSenseButtons.L3] = InputAction.ForSystem(SystemAction.ToggleKeyboard), // clavier virtuel se7en
             },
         },
     };

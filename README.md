@@ -4,7 +4,7 @@ Application Windows pour utiliser une manette PS5 **DualSense** sur PC : lecture
 correction du drift des sticks, et compatibilité avec n'importe quel jeu (émulation DualShock 4 pour
 garder les icônes PlayStation, Xbox 360 en option, ou DualSense native).
 
-> **État** (v0.5) : émulation DualShock 4 / Xbox 360 / DualSense native / clavier-souris, masquage HidHide,
+> **État** (v0.6) : émulation DualShock 4 / Xbox 360 / DualSense native / clavier-souris, masquage HidHide,
 > anti-drift, mappage complet (clavier, souris, macros, couche secondaire, pavé tactile), plusieurs manettes,
 > manette 3D temps réel, exécutable autonome avec mises à jour. Détail et suite : [ROADMAP.md](ROADMAP.md).
 
@@ -22,10 +22,15 @@ Si la manette restait invisible après un arrêt brutal : `se7en DualSense.exe -
 - **Macros** enregistrées en jouant la séquence sur la manette (une fois, en boucle ou en bascule).
 - **Raccourcis PS + bouton** : volume, média, capture d'écran, profil suivant, mode bureau, extinction… (un appui court sur PS reste transmis au jeu).
 - **Bouton micro** relié au micro de Windows (LED orange quand il est coupé).
-- **Gyroscope** : visée par inclinaison.
+- **Gyroscope** : visée par inclinaison, vers le stick droit ou **directement la souris** ; **flick stick** pour les jeux de tir PC.
+- **Anti-drift automatique** : le centre des sticks se recalibre tout seul quand la manette est posée.
 - **Profils par jeu** : bibliothèque Steam / Epic / Rockstar détectée, bascule automatique au lancement d'un jeu, import / export, profil « Bureau Windows ».
-- **Retours** : vibrations du jeu (intensité réglable), **vibrations générées depuis le son**, barre lumineuse (jeu, personnalisée, batterie), LED joueur.
-- **Batterie** : alerte à 20 % puis 10 %, **extinction de la manette en Bluetooth** (PS + Options).
+- **Retours** : vibrations du jeu (intensité réglable), **vibrations générées depuis le son**, **haptique HD** de la DualSense (USB), **gâchettes réactives au son**, barre lumineuse (jeu, personnalisée, batterie, **arc-en-ciel, respiration, musique, couleurs de l'écran**), LED joueur.
+- **Son de la manette** (USB) : copie du son du PC dans son haut-parleur / casque, manette ou micro de la manette comme périphérique Windows.
+- **Batterie** : alerte à 20 % puis 10 %, **autonomie restante estimée**, historique sur 24 h, **extinction en Bluetooth** (PS + Options), **association Bluetooth** depuis l'application.
+- **Lanceur de jeux plein écran** et **clavier virtuel**, pilotés à la manette (PS + R3, PS + L3).
+- **Un profil par manette** quand plusieurs sont branchées · détection des conflits avec **Steam Input**.
+- **Effets sonores** de l'interface (synthétisés, réglables).
 - **Interface** : manette **3D temps réel** (suit les mouvements de la vraie manette, chaque commande bouge, barre lumineuse en direct), couleurs d'accent, thème clair / sombre, animations.
 - **Confort** : icône près de l'horloge, démarrage avec Windows, overlay en jeu, navigation à la manette, installation en un clic, **mises à jour automatiques** (publications GitHub).
 - **Diagnostic** : circularité des sticks, course des gâchettes, fréquence, historique du drift, rapport brut.

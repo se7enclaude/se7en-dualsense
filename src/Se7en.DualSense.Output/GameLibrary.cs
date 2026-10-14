@@ -5,7 +5,7 @@ using Microsoft.Win32;
 namespace Se7en.DualSense.Output;
 
 /// <summary>Jeu installé détecté sur le PC.</summary>
-public sealed record InstalledGame(string Name, string Store, string InstallDir, string? Executable, string? CoverPath);
+public sealed record InstalledGame(string Name, string Store, string InstallDir, string? Executable, string? CoverPath, string? LaunchUri = null);
 
 /// <summary>
 /// Détection des jeux installés : Steam (bibliothèques + manifestes), Epic Games (manifestes .item)
@@ -62,7 +62,8 @@ public static partial class GameLibrary
                     ? new[] { $"{id}_library_600x900.jpg", $"{id}/library_600x900.jpg" }
                         .Select(f => Path.Combine(steam, "appcache", "librarycache", f)).FirstOrDefault(File.Exists)
                     : null;
-                yield return new InstalledGame(name, "Steam", installDir, GuessExecutable(installDir, name), cover);
+                yield return new InstalledGame(name, "Steam", installDir, GuessExecutable(installDir, name), cover,
+                    id != null ? "steam://rungameid/" + id : null);
             }
         }
     }
@@ -81,8 +82,10 @@ public static partial class GameLibrary
             string? name = root.TryGetProperty("DisplayName", out var n) ? n.GetString() : null;
             string? dir = root.TryGetProperty("InstallLocation", out var d) ? d.GetString() : null;
             string? exe = root.TryGetProperty("LaunchExecutable", out var e) ? e.GetString() : null;
+            string? app = root.TryGetProperty("AppName", out var a) ? a.GetString() : null;
             if (name == null || dir == null) continue;
-            yield return new InstalledGame(name, "Epic Games", dir, exe != null ? Path.Combine(dir, exe) : GuessExecutable(dir, name), null);
+            yield return new InstalledGame(name, "Epic Games", dir, exe != null ? Path.Combine(dir, exe) : GuessExecutable(dir, name), null,
+                app != null ? $"com.epicgames.launcher://apps/{app}?action=launch&silent=true" : null);
         }
     }
 
