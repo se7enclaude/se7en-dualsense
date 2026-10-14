@@ -25,9 +25,7 @@
         <Line Grid.Column="0" Style="{StaticResource Rule.V}" HorizontalAlignment="Right" />
         <DockPanel Grid.Column="0" x:Name="Sidebar" Margin="16,24,16,16" LastChildFill="True">
             <StackPanel DockPanel.Dock="Top" Margin="14,4,14,26" Orientation="Horizontal">
-                <Rectangle Width="11" Height="11" Fill="{DynamicResource Ink}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" Margin="0,2,12,0">
-                    <Rectangle.RenderTransform><RotateTransform Angle="45" /></Rectangle.RenderTransform>
-                </Rectangle>
+                <Image Source="/Assets/logo.png" Width="28" Height="28" VerticalAlignment="Center" Margin="0,2,10,0" RenderOptions.BitmapScalingMode="HighQuality" />
                 <TextBlock x:Name="Brand" Text="se7en" FontFamily="{StaticResource Font.Brand}" FontSize="24" Foreground="{DynamicResource Text.Primary}" VerticalAlignment="Center" />
             </StackPanel>
 
