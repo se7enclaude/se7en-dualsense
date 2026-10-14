@@ -4,7 +4,7 @@
         xmlns:c="clr-namespace:Se7en.DualSense.App.Controls"
         xmlns:pages="clr-namespace:Se7en.DualSense.App.Pages"
         Title="se7en DualSense"
-        Width="1280" Height="820" MinWidth="1080" MinHeight="680"
+        Width="1280" Height="820" MinWidth="960" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Surface.Page}"
         FontFamily="{StaticResource Font.Sans}"
@@ -16,62 +16,81 @@
 
     <Grid x:Name="Root">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="248" />
+            <ColumnDefinition x:Name="SidebarColumn" Width="248" />
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="52" />
+            <ColumnDefinition x:Name="RailColumn" Width="52" />
         </Grid.ColumnDefinitions>
 
         <!-- ───────────── Sidebar (séparée par un filet pointillé) ───────────── -->
         <Line Grid.Column="0" Style="{StaticResource Rule.V}" HorizontalAlignment="Right" />
-        <DockPanel Grid.Column="0" Margin="16,24,16,16" LastChildFill="False">
-            <StackPanel DockPanel.Dock="Top" Margin="14,4,14,34" Orientation="Horizontal">
+        <DockPanel Grid.Column="0" x:Name="Sidebar" Margin="16,24,16,16" LastChildFill="True">
+            <StackPanel DockPanel.Dock="Top" Margin="14,4,14,26" Orientation="Horizontal">
                 <Rectangle Width="11" Height="11" Fill="{DynamicResource Ink}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" Margin="0,2,12,0">
                     <Rectangle.RenderTransform><RotateTransform Angle="45" /></Rectangle.RenderTransform>
                 </Rectangle>
-                <TextBlock Text="se7en" FontFamily="{StaticResource Font.Brand}" FontSize="24" Foreground="{DynamicResource Text.Primary}" VerticalAlignment="Center" />
+                <TextBlock x:Name="Brand" Text="se7en" FontFamily="{StaticResource Font.Brand}" FontSize="24" Foreground="{DynamicResource Text.Primary}" VerticalAlignment="Center" />
             </StackPanel>
 
-            <StackPanel DockPanel.Dock="Top" x:Name="Nav">
-                <RadioButton Style="{StaticResource NavItem}" GroupName="Nav" Tag="{StaticResource Icon.House}" Content="Accueil" x:Name="NavHome" IsChecked="True" Checked="OnNavChecked" Margin="0,0,0,4" />
-                <RadioButton Style="{StaticResource NavItem}" GroupName="Nav" Tag="{StaticResource Icon.Crosshair}" Content="Calibration" x:Name="NavCalibration" Checked="OnNavChecked" Margin="0,0,0,4" />
-                <RadioButton Style="{StaticResource NavItem}" GroupName="Nav" Tag="{StaticResource Icon.SlidersHorizontal}" Content="Mappage" x:Name="NavMapping" Checked="OnNavChecked" Margin="0,0,0,4" />
-                <RadioButton Style="{StaticResource NavItem}" GroupName="Nav" Tag="{StaticResource Icon.Vibrate}" Content="Vibrations &amp; lumière" x:Name="NavFeedback" Checked="OnNavChecked" Margin="0,0,0,4" />
-                <RadioButton Style="{StaticResource NavItem}" GroupName="Nav" Tag="{StaticResource Icon.LibraryBig}" Content="Jeux &amp; profils" x:Name="NavGames" Checked="OnNavChecked" Margin="0,0,0,4" />
-            </StackPanel>
-
-            <!-- Carte manette -->
-            <ContentControl DockPanel.Dock="Bottom" Style="{StaticResource Card.Small}" Padding="14">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource Ink}" VerticalAlignment="Center">
-                        <c:AxisIcon x:Name="DeviceIcon" Data="{StaticResource Icon.Gamepad2}" Width="17" Height="17" Foreground="{DynamicResource Highlight}" />
-                    </Border>
-                    <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock x:Name="DeviceName" Text="Aucune manette" FontSize="13" FontWeight="SemiBold" Style="{StaticResource Text.Base}" TextTrimming="CharacterEllipsis" />
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <c:AxisIcon x:Name="DeviceLinkIcon" Data="{StaticResource Icon.Usb}" Width="12" Height="12" Margin="0,0,8,0" Visibility="Collapsed" />
-                            <c:BatteryMeter x:Name="DeviceBattery" Visibility="Collapsed" />
-                            <TextBlock x:Name="DeviceHint" Text="Non connectée" Style="{StaticResource Text.Caption}" />
+            <!-- Carte manette + profil actif -->
+            <ContentControl DockPanel.Dock="Bottom" x:Name="DeviceCard" Style="{StaticResource Card.Small}" Padding="14" Margin="0,12,0,0">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource Ink}" VerticalAlignment="Center">
+                            <c:AxisIcon x:Name="DeviceIcon" Data="{StaticResource Icon.Gamepad2}" Width="17" Height="17" Foreground="{DynamicResource Text.Tertiary}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="DeviceName" Text="Aucune manette" FontSize="13" FontWeight="SemiBold" Style="{StaticResource Text.Base}" TextTrimming="CharacterEllipsis" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <c:AxisIcon x:Name="DeviceLinkIcon" Data="{StaticResource Icon.Usb}" Width="12" Height="12" Margin="0,0,8,0" Visibility="Collapsed" />
+                                <c:BatteryMeter x:Name="DeviceBattery" Visibility="Collapsed" />
+                                <TextBlock x:Name="DeviceHint" Text="Non connectée" Style="{StaticResource Text.Caption}" />
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </Grid>
+                    </Grid>
+                    <Button x:Name="ProfileLink" Margin="0,12,0,0" Cursor="Hand" Click="OnProfileLinkClick" FocusVisualStyle="{StaticResource FocusRing}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" CornerRadius="8" Background="{DynamicResource Surface.Inset}" Padding="10,7">
+                                    <DockPanel>
+                                        <c:AxisIcon DockPanel.Dock="Right" Data="{StaticResource Icon.ChevronRight}" Width="14" Height="14" Foreground="{DynamicResource Text.Tertiary}" />
+                                        <c:AxisIcon DockPanel.Dock="Left" Data="{StaticResource Icon.Layers}" Width="14" Height="14" Foreground="{DynamicResource Accent}" Margin="0,0,8,0" />
+                                        <TextBlock x:Name="ProfileText" Text="{TemplateBinding Content}" FontFamily="{StaticResource Font.Sans}" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{DynamicResource Text.Primary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Veil}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
             </ContentControl>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel x:Name="Nav" />
+            </ScrollViewer>
         </DockPanel>
 
         <!-- ───────────── Zone principale ───────────── -->
-        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" Margin="0,40,0,0">
-            <ContentControl x:Name="PageHost" Margin="40,8,40,40" MaxWidth="1120" Focusable="False" />
+        <ScrollViewer x:Name="PageScroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" Margin="0,40,0,0">
+            <ContentControl x:Name="PageHost" Margin="40,8,40,40" MaxWidth="1120" Focusable="False" RenderTransformOrigin="0.5,0">
+                <ContentControl.RenderTransform><TranslateTransform x:Name="PageShift" /></ContentControl.RenderTransform>
+            </ContentControl>
         </ScrollViewer>
 
         <!-- ───────────── Rail vertical droit ───────────── -->
-        <Line Grid.Column="2" Style="{StaticResource Rule.V}" HorizontalAlignment="Left" />
-        <DockPanel Grid.Column="2" Margin="0,72,0,28" LastChildFill="False">
+        <Line Grid.Column="2" x:Name="RailRule" Style="{StaticResource Rule.V}" HorizontalAlignment="Left" />
+        <DockPanel Grid.Column="2" x:Name="Rail" Margin="0,72,0,28" LastChildFill="False">
             <StackPanel DockPanel.Dock="Top" HorizontalAlignment="Center">
                 <Button x:Name="RailGames" Style="{StaticResource VerticalLabel}" Content="JEUX" Click="OnRailClick" Tag="games" Margin="0,0,0,28" />
-                <Button x:Name="RailFeedback" Style="{StaticResource VerticalLabel}" Content="VIBRATIONS" Click="OnRailClick" Tag="feedback" Margin="0,0,0,28" />
+                <Button x:Name="RailSticks" Style="{StaticResource VerticalLabel}" Content="STICKS" Click="OnRailClick" Tag="sticks" Margin="0,0,0,28" />
                 <Button x:Name="RailMapping" Style="{StaticResource VerticalLabel}" Content="MAPPAGE" Click="OnRailClick" Tag="mapping" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Bottom" HorizontalAlignment="Center">
@@ -81,11 +100,21 @@
             </StackPanel>
         </DockPanel>
 
+        <!-- Notifications -->
+        <c:ToastHost x:Name="Toasts" Grid.ColumnSpan="3" Panel.ZIndex="40" />
+
+        <!-- Fenêtre modale (calibration, assistant de premier lancement) -->
+        <Grid x:Name="ModalHost" Grid.ColumnSpan="3" Panel.ZIndex="30" Visibility="Collapsed">
+            <Border Background="#4716181D" x:Name="ModalVeil" MouseDown="OnVeilMouseDown" />
+            <Border x:Name="ModalCard" CornerRadius="16" Background="{DynamicResource Surface.Raised}" Padding="32" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Effect="{DynamicResource Shadow.Pop}" BorderBrush="{DynamicResource Border.Hairline}" BorderThickness="1" />
+        </Grid>
+
         <!-- Écran d'ouverture (intro animée + accueil « Découvrez —DualSense ») -->
         <pages:WelcomeView x:Name="Welcome" Grid.ColumnSpan="3" Panel.ZIndex="10" />
 
         <!-- Barre de titre sans chrome -->
-        <StackPanel Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Height="40" Margin="0,0,8,0" Panel.ZIndex="20">
+        <StackPanel Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Height="40" Margin="0,0,8,0" Panel.ZIndex="50">
             <Button x:Name="ThemeButton" Style="{StaticResource IconButton.Ghost}" WindowChrome.IsHitTestVisibleInChrome="True"
                     Click="OnToggleTheme" ToolTip="Changer de thème" Margin="0,0,10,0">
                 <c:AxisIcon x:Name="ThemeIcon" Data="{StaticResource Icon.Moon}" Width="15" Height="15"

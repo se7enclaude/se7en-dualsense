@@ -6,16 +6,26 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>se7en DualSense</AssemblyName>
     <RootNamespace>Se7en.DualSense.App</RootNamespace>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\Fonts\*.ttf" />
     <Resource Include="Assets\Images\*.png" />
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinForms sert uniquement à l'icône de la zone de notification : pas d'import global (conflits avec WPF) -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Se7en.DualSense.Hid\Se7en.DualSense.Hid.csproj" />
     <ProjectReference Include="..\Se7en.DualSense.Output\Se7en.DualSense.Output.csproj" />
+    <ProjectReference Include="..\Se7en.DualSense.Processing\Se7en.DualSense.Processing.csproj" />
   </ItemGroup>
 
 </Project>

@@ -25,6 +25,8 @@ public sealed class DualSenseConnection : IDisposable
     private HidStream? _stream;
 
     private DualSenseState _latest;
+    private readonly byte[] _lastRaw = new byte[DualSenseReportParser.BtInputReportLength];
+    private int _lastRawLength;
     private DualSenseOutputState _desiredOutput = DualSenseOutputState.Default;
     private bool _outputDirty = true;
     private volatile bool _outputEnabled = true;
@@ -56,6 +58,12 @@ public sealed class DualSenseConnection : IDisposable
             if (value)
                 lock (_outputLock) _outputDirty = true;
         }
+    }
+
+    /// <summary>Copie du dernier rapport brut reçu (diagnostic).</summary>
+    public byte[] CopyLastReport()
+    {
+        lock (_stateLock) return _lastRaw.AsSpan(0, _lastRawLength).ToArray();
     }
 
     /// <summary>Copie du dernier état reçu (thread-safe).</summary>
@@ -225,7 +233,12 @@ public sealed class DualSenseConnection : IDisposable
             if (read > 0 && DualSenseReportParser.TryParse(input.AsSpan(0, read), out var state))
             {
                 ReportCount++;
-                lock (_stateLock) _latest = state;
+                lock (_stateLock)
+                {
+                    _latest = state;
+                    _lastRawLength = Math.Min(read, _lastRaw.Length);
+                    Array.Copy(input, _lastRaw, _lastRawLength);
+                }
                 StateReceived?.Invoke(in state);
             }
 

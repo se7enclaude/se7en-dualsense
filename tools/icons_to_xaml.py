@@ -6,7 +6,8 @@ WANTED = ["house", "crosshair", "sliders-horizontal", "vibrate", "library-big", 
           "bluetooth", "minus", "copy", "x", "moon", "sun", "gamepad-2", "zap", "triangle-alert",
           "layers", "activity", "power", "lightbulb", "info", "refresh-cw", "check", "circle-check",
           "battery-full", "battery-medium", "battery-low", "battery-charging", "joystick", "wand-sparkles",
-          "arrow-right", "arrow-up-right", "box", "diamond", "menu", "triangle"]
+          "arrow-right", "arrow-up-right", "box", "diamond", "menu", "triangle", "gauge", "move", "chevron-right",
+          "chevron-left", "chevron-down", "plus", "trash-2", "save", "download", "search", "keyboard", "target", "rotate-ccw"]
 
 text = open(src, encoding="utf-8").read()
 data = json.loads(text[text.index("{"): text.rindex("}") + 1])

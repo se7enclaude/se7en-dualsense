@@ -1,80 +1,66 @@
 # se7en DualSense — feuille de route
 
-Chaque phase se termine par un test de ta part avant de passer à la suivante.
-Légende : ✅ fait · 🔜 phase en cours · ⬜ à faire
+Légende : ✅ fait · 🧪 fait, à tester en jeu · ⬜ à faire
 
 ---
 
-## Phase 1 — Lecture de la manette ✅ (validée sur la vraie manette)
+## Phase 1 — Lecture de la manette ✅
 - ✅ Détection USB / Bluetooth, reconnexion automatique
 - ✅ Parsing des rapports 0x01 (USB), 0x31 (BT, CRC32), rapport BT réduit
-- ✅ Rapports de sortie (vibrations, barre lumineuse, LED) avec CRC32 en BT
-- ✅ Outil console de test
-- ✅ Interface Axis : accueil avec la DualSense (photo) animée en direct, thème clair/sombre, mode démo
+- ✅ Rapports de sortie (vibrations, barre lumineuse, LED, gâchettes adaptatives) avec CRC32 en BT
 
-## Phase 2 — Sortie virtuelle et modes de jeu 🔜 (à tester en jeu)
-- ✅ Vérification de ViGEmBus / HidHide au lancement + téléchargement (signature vérifiée) et installation guidées
-- ✅ DualShock 4 virtuelle (icônes PlayStation), pavé tactile, gyroscope et bouton PS compris — vérifiée sur la vraie manette
-- ✅ Xbox 360 virtuelle
-- ✅ DualSense native (passthrough, lecture seule) avec mention « anti-drift inactif »
-- ✅ Masquage HidHide sûr (liste blanche, journal, démasquage à la fermeture / au plantage, option `--unhide-all`)
-- ✅ Bascule de mode en un clic, sans redémarrage (sélecteur « Les jeux voient » sur l'accueil)
-- ✅ Vibrations et barre lumineuse du jeu renvoyées vers la DualSense
-- ✅ Tests unitaires des conversions (rapport réel, DS4, Xbox, HidHide)
-- ⬜ Détection de Steam Input (avertissement double entrée)
-- ⬜ **Plusieurs manettes** en même temps (une manette virtuelle par DualSense) — à prévoir dès cette phase car cela structure le moteur
+## Phase 2 — Sortie virtuelle et modes de jeu 🧪
+- ✅ Vérification de ViGEmBus / HidHide + téléchargement (signature vérifiée) et installation guidées
+- ✅ DualShock 4 virtuelle : pavé tactile, gyroscope, bouton PS — vérifiée sur la vraie manette
+- ✅ Xbox 360 virtuelle · ✅ DualSense native (lecture seule, « anti-drift inactif »)
+- ✅ Masquage HidHide sûr (journal, démasquage à la fermeture / au plantage, `--unhide-all`)
+- ✅ Bascule de mode en un clic, vibrations et barre lumineuse du jeu renvoyées vers la DualSense
+- ⬜ Plusieurs manettes en même temps
 
-## Phase 3 — Sticks, gâchettes, anti-drift
-- ⬜ Calibration du centre (manette posée) et de l'amplitude (rotation des sticks)
-- ⬜ Zone morte radiale interne + zone morte externe, par stick
-- ⬜ **Anti-deadzone** (compense la zone morte du jeu)
-- ⬜ Courbes de réponse : linéaire, douce, agressive + **courbe personnalisée à points**
-- ⬜ **Sensibilité séparée X / Y**, **inversion d'axes**, **échange des sticks** (gaucher)
-- ⬜ Zones mortes L2 / R2 + **gâchette en tout-ou-rien** (hair trigger)
-- ⬜ **Détection automatique du drift** au repos, avec proposition de calibration
-- ⬜ **Calibration mémorisée par manette** (numéro de série)
-- ⬜ Tests unitaires de toute la chaîne de traitement
+## Phase 3 — Sticks, gâchettes, anti-drift ✅
+- ✅ Calibration du centre et de l'amplitude (assistant guidé), mémorisée par manette (numéro de série)
+- ✅ Zone morte radiale interne + externe, anti-zone morte
+- ✅ Courbes : linéaire, douce, agressive, exposant personnalisé (graphe en direct)
+- ✅ Sensibilité X / Y, inversion d'axes, échange des sticks
+- ✅ Zones mortes L2 / R2 + tout-ou-rien
+- ✅ Détection automatique du drift (alerte sur l'accueil + pastille sur l'onglet)
+- ✅ Tests unitaires de la chaîne de traitement (44 tests au total)
 
-## Phase 4 — Interface complète
-- ⬜ Page Calibration (assistant guidé, sticks bruts / corrigés côte à côte, zones mortes dessinées sur la grande manette)
-- ⬜ **Testeur de manette** : tous les boutons, graphique de circularité des sticks, course des gâchettes
-- ⬜ **Historique du drift** (graphique dans le temps)
-- ⬜ **Infos matérielles** : firmware, numéro de série, adresse Bluetooth
-- ⬜ Messages d'erreur clairs en français (manette retirée, pilotes absents, changement de mode)
-- ⬜ Retouche du détourage (taches sous les poignées, liseré en thème sombre)
+## Phase 4 — Interface complète ✅
+- ✅ 9 onglets en 3 sections : Accueil, Jeux & profils · Sticks, Gâchettes, Mappage, Gyroscope, Vibrations & lumière · Diagnostic, Réglages
+- ✅ Testeur : circularité des sticks, course des gâchettes, fréquence, rapport brut, infos matérielles
+- ✅ Notifications, transitions de page, raccourcis Ctrl + 1…9, Échap
+- ✅ Assistant de premier lancement (pilotes → calibration → mode)
+- ✅ Navigation dans l'application à la manette (croix, ✕, ○, L1 / R1)
+- ✅ Barre latérale compacte sur les petites fenêtres
+- ⬜ Historique du drift (graphique dans le temps)
 
 ## Phase 5 — Mappage, profils, retours
-- ⬜ Remapping de n'importe quel bouton
-- ⬜ **Couche secondaire** (bouton maintenu = deuxième jeu de commandes)
-- ⬜ **Turbo** et **macros**
-- ⬜ **Pavé tactile en zones** (2 ou 4 boutons) et **gestes** (balayages)
-- ⬜ **Pavé tactile en souris** sur le bureau
-- ⬜ **Mode clavier / souris** pour les jeux sans support manette
-- ⬜ **Visée au gyroscope** (vers stick droit ou souris), activable seulement en visant (L2)
-- ⬜ **Raccourcis système** (PS + bouton : volume, capture d'écran, Game Bar)
-- ⬜ **Bouton micro** : coupe le micro Windows, LED orange synchronisée
-- ⬜ Profils JSON par jeu (avec mode de sortie), import / export, **profils partageables**
-- ⬜ **Bibliothèque de jeux automatique** (Steam, Epic, GOG) + bascule auto au lancement
-- ⬜ **Notification au changement de profil**
-- ⬜ Vibrations du jeu → DualSense, **intensité réglable 0-200 %**
-- ⬜ **Vibrations générées depuis le son du jeu** (basses)
-- ⬜ **Gâchettes adaptatives en mode DS4 / Xbox** (résistance réglée par l'application)
-- ⬜ Barre lumineuse : personnalisée, pilotée par le jeu, ou **indicateur de batterie** ; **luminosité** et **LED joueur** réglables
-- ⬜ **Alerte batterie faible** (notification + barre rouge)
-- ⬜ **Extinction de la manette en Bluetooth** (bouton + automatique après inactivité)
-- ⬜ **DualSense Edge** : palettes arrière, boutons Fn
+- ✅ Remapping de n'importe quel bouton, turbo (cadence réglable)
+- ✅ Profils JSON par jeu (mode + réglages), import / export, duplication
+- ✅ Bibliothèque de jeux automatique (Steam, Epic, Rockstar) + bascule auto au lancement d'un jeu
+- ✅ Visée au gyroscope (toujours / en visant / avec R1), sensibilité, zone morte
+- ✅ Vibrations : intensité 0-200 %, tests des moteurs
+- ✅ Gâchettes adaptatives en modes DS4 / Xbox (résistance, point dur, vibration) + préréglages
+- ✅ Barre lumineuse : couleur du jeu, personnalisée, batterie, éteinte ; luminosité ; LED joueur
+- ⬜ Couche secondaire, macros, pavé tactile en zones et gestes
+- ⬜ Mode clavier / souris, pavé tactile en souris
+- ⬜ Raccourcis système (PS + bouton), bouton micro relié au micro Windows
+- ⬜ Vibrations générées depuis le son du jeu
+- ⬜ Extinction de la manette en Bluetooth, alerte batterie faible
+- ⬜ DualSense Edge : palettes arrière, boutons Fn
 
 ## Phase 6 — Confort et publication
-- ⬜ Icône dans la barre des tâches, fonctionnement en arrière-plan
-- ⬜ Démarrage avec Windows (tâche planifiée, droits administrateur)
-- ⬜ Bouton activer / désactiver l'émulation
-- ⬜ **Overlay en jeu** (batterie, profil actif)
-- ⬜ **Indicateur de latence** et fréquence de la manette
-- ⬜ **Mises à jour automatiques** (nécessite un dépôt de publication, ex. GitHub Releases)
-- ⬜ Publication en un seul .exe autonome (win-x64), README complet
+- ✅ Icône dans la zone de notification (mode, profil, batterie), fermeture en arrière-plan
+- ✅ Démarrage avec Windows (tâche planifiée, droits administrateur, démarrage réduit)
+- ✅ Overlay en jeu (batterie, profil, mode)
+- ✅ Journal des erreurs (`error.log`)
+- ⬜ Mises à jour automatiques (via GitHub Releases)
+- ⬜ Publication en un seul .exe autonome (win-x64)
 
 ---
 
 ## Hors de portée (limites techniques)
-- Haptique HD et gâchettes adaptatives **envoyées par le jeu** en mode DS4 / Xbox : le jeu ne les produit que pour une vraie DualSense → utiliser le mode natif.
+- Haptique HD et gâchettes adaptatives **envoyées par le jeu** en mode DS4 / Xbox : le jeu ne les produit que pour une vraie DualSense → mode natif.
 - DualSense virtuelle : nécessiterait un pilote signé par Microsoft.
+- Certains anti-triche bloquent les manettes virtuelles.

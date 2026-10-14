@@ -15,6 +15,9 @@ public record struct DualSenseOutputState
     /// <summary>LED joueur (5 bits). 0x04 = LED centrale (joueur 1).</summary>
     public byte PlayerLeds;
     public bool MuteLed;
+    /// <summary>Effets de gâchettes adaptatives (null = ne pas piloter les gâchettes).</summary>
+    public TriggerEffect? LeftTrigger;
+    public TriggerEffect? RightTrigger;
 
     public static DualSenseOutputState Default => new()
     {
@@ -23,6 +26,28 @@ public record struct DualSenseOutputState
         LightbarBlue = 255,
         PlayerLeds = 0x04,
     };
+}
+
+/// <summary>
+/// Effet de gâchette adaptative (modes simples largement documentés) :
+/// 0x05 = aucun, 0x01 = résistance continue [début, force], 0x02 = section [début, fin, force],
+/// 0x06 = vibration [fréquence, force, début].
+/// </summary>
+public readonly record struct TriggerEffect(byte Mode, byte P1 = 0, byte P2 = 0, byte P3 = 0)
+{
+    public static TriggerEffect Off => new(0x05);
+
+    /// <summary>Résistance dès <paramref name="start"/> (0-1), d'intensité <paramref name="force"/> (0-1).</summary>
+    public static TriggerEffect Resistance(double start, double force) =>
+        new(0x01, (byte)(Math.Clamp(start, 0, 1) * 255), (byte)(Math.Clamp(force, 0, 1) * 255));
+
+    /// <summary>Point dur entre <paramref name="start"/> et <paramref name="end"/> (0-1) : sensation d'arme, d'arc.</summary>
+    public static TriggerEffect Section(double start, double end, double force) =>
+        new(0x02, (byte)(Math.Clamp(start, 0, 1) * 255), (byte)(Math.Clamp(Math.Max(end, start), 0, 1) * 255), (byte)(Math.Clamp(force, 0, 1) * 255));
+
+    /// <summary>Gâchette qui vibre à partir de <paramref name="start"/>.</summary>
+    public static TriggerEffect Vibration(double frequency, double force, double start) =>
+        new(0x06, (byte)(Math.Clamp(frequency, 0, 1) * 255), (byte)(Math.Clamp(force, 0, 1) * 255), (byte)(Math.Clamp(start, 0, 1) * 255));
 }
 
 /// <summary>
@@ -37,6 +62,8 @@ public static class DualSenseOutputReport
 
     // Bloc commun
     private const int Flag0 = 0, Flag1 = 1, MotorRight = 2, MotorLeft = 3, MuteLed = 8;
+    private const int RightTriggerBlock = 10, LeftTriggerBlock = 21;
+    private const byte Flag0RightTrigger = 0x04, Flag0LeftTrigger = 0x08;
     private const int Flag2 = 38, LightbarSetup = 41, LedBrightness = 42, PlayerLeds = 43;
     private const int LightbarR = 44, LightbarG = 45, LightbarB = 46;
 
@@ -83,6 +110,17 @@ public static class DualSenseOutputReport
         common[MotorLeft] = state.HeavyMotor;
         common[MuteLed] = state.MuteLed ? (byte)1 : (byte)0;
 
+        if (state.RightTrigger is { } rt)
+        {
+            common[Flag0] |= Flag0RightTrigger;
+            WriteTrigger(common.Slice(RightTriggerBlock, 11), rt);
+        }
+        if (state.LeftTrigger is { } lt)
+        {
+            common[Flag0] |= Flag0LeftTrigger;
+            WriteTrigger(common.Slice(LeftTriggerBlock, 11), lt);
+        }
+
         if (releaseLightbar)
         {
             common[Flag2] = Flag2LightbarSetupEnable;
@@ -102,5 +140,14 @@ public static class DualSenseOutputReport
         }
 
         return length;
+    }
+
+    private static void WriteTrigger(Span<byte> block, TriggerEffect e)
+    {
+        block.Clear();
+        block[0] = e.Mode;
+        block[1] = e.P1;
+        block[2] = e.P2;
+        block[3] = e.P3;
     }
 }

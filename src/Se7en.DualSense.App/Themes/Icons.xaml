@@ -37,4 +37,17 @@
     <Geometry x:Key="Icon.Diamond">M 2.7 10.3 a 2.41 2.41 0 0 0 0 3.41 l 7.59 7.59 a 2.41 2.41 0 0 0 3.41 0 l 7.59 -7.59 a 2.41 2.41 0 0 0 0 -3.41 l -7.59 -7.59 a 2.41 2.41 0 0 0 -3.41 0 Z</Geometry>
     <Geometry x:Key="Icon.Menu">M 4 12 L 20 12 M 4 6 L 20 6 M 4 18 L 20 18</Geometry>
     <Geometry x:Key="Icon.Triangle">M 13.73 4 a 2 2 0 0 0 -3.46 0 l -8 14 A 2 2 0 0 0 4 21 h 16 a 2 2 0 0 0 1.73 -3 Z</Geometry>
+    <Geometry x:Key="Icon.Gauge">M 12 14 l 4 -4 M 3.34 19 a 10 10 0 1 1 17.32 0</Geometry>
+    <Geometry x:Key="Icon.Move">M 12 2 v 20 M 15 19 l -3 3 l -3 -3 M 19 9 l 3 3 l -3 3 M 2 12 h 20 M 5 9 l -3 3 l 3 3 M 9 5 l 3 -3 l 3 3</Geometry>
+    <Geometry x:Key="Icon.ChevronRight">M 9 18 l 6 -6 l -6 -6</Geometry>
+    <Geometry x:Key="Icon.ChevronLeft">M 15 18 l -6 -6 l 6 -6</Geometry>
+    <Geometry x:Key="Icon.ChevronDown">M 6 9 l 6 6 l 6 -6</Geometry>
+    <Geometry x:Key="Icon.Plus">M 5 12 h 14 M 12 5 v 14</Geometry>
+    <Geometry x:Key="Icon.Trash2">M 3 6 h 18 M 19 6 v 14 c 0 1 -1 2 -2 2 H 7 c -1 0 -2 -1 -2 -2 V 6 M 8 6 V 4 c 0 -1 1 -2 2 -2 h 4 c 1 0 2 1 2 2 v 2 M 10 11 L 10 17 M 14 11 L 14 17</Geometry>
+    <Geometry x:Key="Icon.Save">M 15.2 3 a 2 2 0 0 1 1.4 0.6 l 3.8 3.8 a 2 2 0 0 1 0.6 1.4 V 19 a 2 2 0 0 1 -2 2 H 5 a 2 2 0 0 1 -2 -2 V 5 a 2 2 0 0 1 2 -2 z M 17 21 v -7 a 1 1 0 0 0 -1 -1 H 8 a 1 1 0 0 0 -1 1 v 7 M 7 3 v 4 a 1 1 0 0 0 1 1 h 7</Geometry>
+    <Geometry x:Key="Icon.Download">M 21 15 v 4 a 2 2 0 0 1 -2 2 H 5 a 2 2 0 0 1 -2 -2 v -4 M 7 10 L 12 15 L 17 10 M 12 15 L 12 3</Geometry>
+    <Geometry x:Key="Icon.Search">M 3 11 A 8 8 0 1 0 19 11 A 8 8 0 1 0 3 11 Z M 21 21 l -4.3 -4.3</Geometry>
+    <Geometry x:Key="Icon.Keyboard">M 10 8 h 0.01 M 12 12 h 0.01 M 14 8 h 0.01 M 16 12 h 0.01 M 18 8 h 0.01 M 6 8 h 0.01 M 7 16 h 10 M 8 12 h 0.01 M 4 4 H 20 A 2 2 0 0 1 22 6 V 18 A 2 2 0 0 1 20 20 H 4 A 2 2 0 0 1 2 18 V 6 A 2 2 0 0 1 4 4 Z</Geometry>
+    <Geometry x:Key="Icon.Target">M 2 12 A 10 10 0 1 0 22 12 A 10 10 0 1 0 2 12 Z M 6 12 A 6 6 0 1 0 18 12 A 6 6 0 1 0 6 12 Z M 10 12 A 2 2 0 1 0 14 12 A 2 2 0 1 0 10 12 Z</Geometry>
+    <Geometry x:Key="Icon.RotateCcw">M 3 12 a 9 9 0 1 0 9 -9 a 9.75 9.75 0 0 0 -6.74 2.74 L 3 8 M 3 3 v 5 h 5</Geometry>
 </ResourceDictionary>

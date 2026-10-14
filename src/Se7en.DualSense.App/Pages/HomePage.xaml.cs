@@ -10,7 +10,7 @@ using Se7en.DualSense.Output;
 
 namespace Se7en.DualSense.App.Pages;
 
-public partial class HomePage : UserControl
+public partial class HomePage : UserControl, ILivePage
 {
     private readonly Stopwatch _rateClock = Stopwatch.StartNew();
     private long _rateCount;
@@ -31,7 +31,7 @@ public partial class HomePage : UserControl
         InitializeComponent();
         BuildButtonGlyphs();
         DemoBadge.Visibility = ControllerService.IsDemo ? Visibility.Visible : Visibility.Collapsed;
-        SyncModeSelector(AppSettings.Current.OutputMode);
+        SyncModeSelector(App.Controller?.ActiveProfile.Mode ?? OutputMode.DualShock4);
         RefreshDriverBanner();
     }
 
@@ -229,7 +229,21 @@ public partial class HomePage : UserControl
 
     private void OnProfilesClick(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("games");
 
-    private void OnCustomizeClick(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("mapping");
+    private void OnFixDriftClick(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("sticks");
+
+    public void SetDriftAlert(bool drift)
+    {
+        var v = drift ? Visibility.Visible : Visibility.Collapsed;
+        if (DriftCard.Visibility != v) DriftCard.Visibility = v;
+    }
+
+    public void OnProfileChanged(Profile profile)
+    {
+        ProfileBadge.Text = "Profil · " + profile.Name;
+        SyncModeSelector(profile.Mode);
+    }
+
+    private void OnCustomizeClick(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("sticks");
 
     public void OnDeviceChanged(DualSenseDeviceInfo? device)
     {

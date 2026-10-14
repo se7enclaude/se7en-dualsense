@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
 using Se7en.DualSense.Output;
+using Se7en.DualSense.Processing;
 
 namespace Se7en.DualSense.App.Services;
 
@@ -42,13 +43,29 @@ public static class ThemeManager
     public static void Toggle() => Apply(Current == AppTheme.Light ? AppTheme.Dark : AppTheme.Light);
 }
 
+public sealed record CalibrationPair(StickCalibration Left, StickCalibration Right);
+
 /// <summary>Préférences persistées dans %AppData%\se7en DualSense\settings.json.</summary>
 public sealed class AppSettings
 {
     public AppTheme Theme { get; set; } = AppTheme.Light;
 
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public OutputMode OutputMode { get; set; } = OutputMode.DualShock4;
+    /// <summary>Profil choisi manuellement (un jeu associé reprend la main quand il tourne).</summary>
+    public string SelectedProfileId { get; set; } = Profile.DefaultId;
+
+    /// <summary>Calibration des sticks par manette (clé = numéro de série, « * » = toutes).</summary>
+    public Dictionary<string, CalibrationPair> Calibrations { get; set; } = new();
+
+    public bool StartWithWindows { get; set; }
+    public bool StartMinimized { get; set; }
+    /// <summary>La croix de la fenêtre réduit dans la zone de notification au lieu de quitter.</summary>
+    public bool CloseToTray { get; set; } = true;
+    public bool ShowOverlay { get; set; }
+    public bool ShowIntro { get; set; } = true;
+    public bool OnboardingDone { get; set; }
+    /// <summary>Naviguer dans l'application avec la croix directionnelle et ✕ / ○.</summary>
+    public bool ControllerNavigation { get; set; } = true;
+    public bool NotifyOnConnect { get; set; } = true;
 
     public static string Directory { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "se7en DualSense");

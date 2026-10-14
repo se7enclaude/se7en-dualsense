@@ -4,19 +4,26 @@ Application Windows pour utiliser une manette PS5 **DualSense** sur PC : lecture
 correction du drift des sticks, et compatibilité avec n'importe quel jeu (émulation DualShock 4 pour
 garder les icônes PlayStation, Xbox 360 en option, ou DualSense native).
 
-> **État : phase 2** — lecture de la manette, émulation DualShock 4 / Xbox 360 / DualSense native, masquage HidHide.
-> L'anti-drift et les profils arrivent dans les phases suivantes — voir [ROADMAP.md](ROADMAP.md).
+> **État** : lecture de la manette, émulation DualShock 4 / Xbox 360 / DualSense native, masquage HidHide,
+> anti-drift (calibration, zones mortes, courbes), remapping, gyroscope, profils par jeu, interface complète.
+> Détail et suite : [ROADMAP.md](ROADMAP.md).
 
 ### Droits administrateur
 HidHide (masquage de la vraie manette) exige les droits administrateur : au lancement, l'application se relance
 une fois en administrateur (invite Windows). En cas de refus, tout fonctionne sauf le masquage.
 Si la manette restait invisible après un arrêt brutal : `se7en DualSense.exe --unhide-all`.
 
-## Ce que fait la version actuelle
-- Détecte la DualSense / DualSense Edge en USB et en Bluetooth, avec reconnexion automatique.
-- Affiche en direct boutons, sticks, gâchettes, pavé tactile, batterie et gyroscope.
-- Accueil avec une DualSense animée (flottement, inclinaison, boutons qui s'allument, sticks qui bougent).
-- Thème clair / sombre (design system « Axis »).
+## Fonctionnalités
+- **Jouer** : DualShock 4 virtuelle (icônes PlayStation), Xbox 360 ou DualSense native, en un clic ; la vraie manette est masquée (HidHide).
+- **Anti-drift** : calibration guidée du centre et de l'amplitude, zones mortes radiales, anti-zone morte, courbes, détection automatique du drift.
+- **Gâchettes** : zones mortes, tout-ou-rien, gâchettes adaptatives (résistance, point dur, vibration).
+- **Mappage** : réattribution de chaque bouton, turbo. **Gyroscope** : visée par inclinaison.
+- **Profils par jeu** : bibliothèque Steam / Epic / Rockstar détectée, bascule automatique au lancement d'un jeu, import / export.
+- **Retours** : vibrations du jeu (intensité réglable), barre lumineuse (jeu, personnalisée, batterie), LED joueur.
+- **Confort** : icône près de l'horloge, démarrage avec Windows, overlay en jeu, navigation à la manette, thème clair / sombre.
+- **Diagnostic** : circularité des sticks, course des gâchettes, fréquence, rapport brut.
+
+Raccourcis : Ctrl + 1…9 pour les onglets, Échap pour fermer une fenêtre. Options : `--skip-intro`, `--minimized`, `--page=sticks`.
 
 ## Prérequis
 - Windows 10 / 11 (x64)
@@ -60,7 +67,8 @@ cadrage demande d'ajuster les coordonnées dans `Controls/DualSenseView.xaml` et
 ```
 src/Se7en.DualSense.Hid/          Lecture HID (HidSharp) : détection, parsing USB/BT, CRC32, rapports de sortie
 src/Se7en.DualSense.ConsoleTest/  Outil console de la phase 1
-src/Se7en.DualSense.Output/       Sortie : DS4 / Xbox 360 virtuelles (ViGEm), HidHide, pilotes
+src/Se7en.DualSense.Processing/   Traitement : calibration, zones mortes, courbes, gâchettes, remapping, gyroscope
+src/Se7en.DualSense.Output/       Sortie : DS4 / Xbox 360 virtuelles (ViGEm), HidHide, pilotes, profils, bibliothèque
 src/Se7en.DualSense.App/          Interface WPF (thème Axis, accueil animé)
 tests/Se7en.DualSense.Tests/      Tests unitaires (dotnet test)
 tools/                            Scripts : détourage de la photo, conversion des polices et des icônes

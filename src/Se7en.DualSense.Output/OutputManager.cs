@@ -1,6 +1,7 @@
 using System.Security.Principal;
 using Nefarius.ViGEm.Client;
 using Se7en.DualSense.Hid;
+using Se7en.DualSense.Processing;
 
 namespace Se7en.DualSense.Output;
 
@@ -27,6 +28,11 @@ public sealed class OutputManager : IDisposable
     private OutputMode _mode;
     private bool _hidHideReady;
     private bool _disposed;
+    private readonly object _snapshotLock = new();
+    private DualSenseState _lastProcessed;
+    private FeedbackSettings _feedback = new();
+    private GameFeedback? _lastGame;
+    private int _battery = 100;
 
     public OutputManager(DualSenseConnection connection, HidHideService hidHide, OutputMode initialMode)
     {
@@ -41,8 +47,79 @@ public sealed class OutputManager : IDisposable
 
     public OutputMode Mode => _mode;
 
-    /// <summary>Si vrai (mode DS4), la couleur de barre lumineuse demandée par le jeu est appliquée.</summary>
-    public bool LightbarFromGame { get; set; } = true;
+    /// <summary>Traitement appliqué avant l'envoi au jeu (calibration, zones mortes, remapping…).</summary>
+    public InputProcessor Processor { get; } = new();
+
+    /// <summary>Assistant de calibration, alimenté par les rapports bruts.</summary>
+    public CalibrationSampler Calibration { get; } = new();
+
+    /// <summary>Dernier état après traitement (ce que reçoit le jeu).</summary>
+    public DualSenseState LastProcessed
+    {
+        get { lock (_snapshotLock) return _lastProcessed; }
+    }
+
+    /// <summary>Applique les réglages de retour (vibrations, barre lumineuse, LED, gâchettes adaptatives).</summary>
+    public void SetFeedback(FeedbackSettings feedback)
+    {
+        _feedback = feedback;
+        ComposeOutput();
+    }
+
+    /// <summary>Niveau de batterie, pour la barre lumineuse en mode « batterie ».</summary>
+    public void SetBatteryLevel(int percent)
+    {
+        if (Math.Abs(percent - _battery) < 5) return;
+        _battery = percent;
+        if (_feedback.Lightbar == LightbarMode.Battery)
+            ComposeOutput();
+    }
+
+    /// <summary>Test des vibrations depuis l'interface (0-1 par moteur), sans passer par un jeu.</summary>
+    public void TestRumble(double heavy, double light)
+    {
+        _lastGame = new GameFeedback((byte)(heavy * 255), (byte)(light * 255), _lastGame?.LightbarRed, _lastGame?.LightbarGreen, _lastGame?.LightbarBlue);
+        ComposeOutput();
+    }
+
+    /// <summary>Calcule l'état de sortie complet à partir du profil et du dernier retour du jeu.</summary>
+    private void ComposeOutput()
+    {
+        var f = _feedback;
+        var game = _lastGame;
+        double k = Math.Clamp(f.RumbleIntensity, 0, 2);
+
+        byte r, g, b;
+        switch (f.Lightbar)
+        {
+            case LightbarMode.FromGame when game is { HasLightbar: true } && _mode == OutputMode.DualShock4:
+                (r, g, b) = (game.Value.LightbarRed!.Value, game.Value.LightbarGreen!.Value, game.Value.LightbarBlue!.Value);
+                break;
+            case LightbarMode.Battery:
+                (r, g, b) = _battery > 50 ? ((byte)0x17, (byte)0xC0, (byte)0x6B) : _battery > 20 ? ((byte)0xF0, (byte)0x9A, (byte)0x1C) : ((byte)0xE8, (byte)0x24, (byte)0x2B);
+                break;
+            case LightbarMode.Off:
+                (r, g, b) = (0, 0, 0);
+                break;
+            default:
+                (r, g, b) = (f.Red, f.Green, f.Blue);
+                break;
+        }
+        double br = Math.Clamp(f.Brightness, 0, 1);
+
+        var output = new DualSenseOutputState
+        {
+            HeavyMotor = (byte)Math.Clamp((game?.HeavyMotor ?? 0) * k, 0, 255),
+            LightMotor = (byte)Math.Clamp((game?.LightMotor ?? 0) * k, 0, 255),
+            LightbarRed = (byte)(r * br),
+            LightbarGreen = (byte)(g * br),
+            LightbarBlue = (byte)(b * br),
+            PlayerLeds = f.PlayerNumber switch { 2 => 0x0A, 3 => 0x15, 4 => 0x1B, _ => 0x04 },
+            LeftTrigger = f.LeftTrigger.ToEffect(),
+            RightTrigger = f.RightTrigger.ToEffect(),
+        };
+        _connection.SetOutput(output);
+    }
 
     public OutputStatus Status { get; private set; } = new(OutputMode.Native, false, false, "");
 
@@ -107,7 +184,8 @@ public sealed class OutputManager : IDisposable
                 {
                     DisposePad();
                     _pad = CreatePad(mode);
-                    _connection.SetOutput(_connection.GetOutput() with { HeavyMotor = 0, LightMotor = 0 });
+                    _lastGame = null;
+                    ComposeOutput();
                 }
                 _connection.OutputEnabled = true;
 
@@ -176,17 +254,22 @@ public sealed class OutputManager : IDisposable
         if (pad == null) return;
         pad.Feedback -= OnFeedback;
         pad.Dispose();
-        _connection.SetOutput(_connection.GetOutput() with { HeavyMotor = 0, LightMotor = 0 });
+        _lastGame = null;
+        ComposeOutput();
     }
 
     /// <summary>Thread d'E/S : transmet l'état au jeu.</summary>
     private void OnState(in DualSenseState state)
     {
+        Calibration.Add(state);
+        Processor.Process(state, out var processed);
+        lock (_snapshotLock) _lastProcessed = processed;
+
         var pad = _pad;
         if (pad == null) return;
         try
         {
-            pad.Submit(state);
+            pad.Submit(processed);
         }
         catch
         {
@@ -197,10 +280,11 @@ public sealed class OutputManager : IDisposable
     /// <summary>Vibrations et barre lumineuse demandées par le jeu → vraie DualSense.</summary>
     private void OnFeedback(GameFeedback f)
     {
-        var o = _connection.GetOutput() with { HeavyMotor = f.HeavyMotor, LightMotor = f.LightMotor };
-        if (f.HasLightbar && LightbarFromGame)
-            o = o with { LightbarRed = f.LightbarRed!.Value, LightbarGreen = f.LightbarGreen!.Value, LightbarBlue = f.LightbarBlue!.Value };
-        _connection.SetOutput(o);
+        // Un retour sans couleur (Xbox) conserve la dernière couleur reçue du jeu
+        if (!f.HasLightbar && _lastGame is { HasLightbar: true } prev)
+            f = f with { LightbarRed = prev.LightbarRed, LightbarGreen = prev.LightbarGreen, LightbarBlue = prev.LightbarBlue };
+        _lastGame = f;
+        ComposeOutput();
     }
 
     /// <summary>Démasque immédiatement (fermeture, plantage) : la manette ne reste jamais invisible.</summary>

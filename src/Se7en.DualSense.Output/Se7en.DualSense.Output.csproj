@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Se7en.DualSense.Hid\Se7en.DualSense.Hid.csproj" />
+    <ProjectReference Include="..\Se7en.DualSense.Processing\Se7en.DualSense.Processing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

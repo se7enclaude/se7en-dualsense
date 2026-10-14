@@ -11,6 +11,12 @@ public partial class App : Application
 {
     public static ControllerService Controller { get; private set; } = null!;
 
+    /// <summary>Fenêtre principale (navigation, notifications, fenêtres modales).</summary>
+    public static Pages.IShell? Shell { get; set; }
+
+    /// <summary>Option --page=nom : onglet ouvert au démarrage (home, games, sticks, triggers, mapping, gyro, feedback, diagnostic, settings).</summary>
+    public static string? StartPage { get; private set; }
+
     /// <summary>Option --skip-intro : ouvre directement le tableau de bord.</summary>
     public static bool SkipIntro { get; private set; }
 
@@ -34,6 +40,7 @@ public partial class App : Application
         ControllerService.IsDemo = args.Contains("--demo") || args.Contains("--demo-all");
         ControllerService.DemoAllButtons = args.Contains("--demo-all");
         SkipIntro = args.Contains("--skip-intro");
+        StartPage = args.FirstOrDefault(a => a.StartsWith("--page="))?.Substring(7);
 
         // HidHide exige les droits administrateur : relance élevée une seule fois au démarrage
         if (!ControllerService.IsDemo && !OutputManager.IsElevated && !args.Contains("--no-elevate")
@@ -59,7 +66,9 @@ public partial class App : Application
         Controller.Start();
 
         MainWindow = new MainWindow();
-        MainWindow.Show();
+        // --minimized (démarrage avec Windows) : l'application reste dans la zone de notification
+        if (!args.Contains("--minimized"))
+            MainWindow.Show();
     }
 
     private static bool TryRelaunchElevated(string[] args)
@@ -86,8 +95,20 @@ public partial class App : Application
         base.OnExit(e);
     }
 
+    /// <summary>Journal des erreurs imprévues (error.log dans le dossier de données de l'application).</summary>
+    public static void LogError(Exception ex)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(AppSettings.Directory);
+            System.IO.File.AppendAllText(System.IO.Path.Combine(AppSettings.Directory, "error.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n");
+        }
+        catch { /* non bloquant */ }
+    }
+
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        LogError(e.Exception);
         MessageBox.Show(
             "Une erreur inattendue s'est produite :\n\n" + e.Exception.Message,
             "se7en DualSense", MessageBoxButton.OK, MessageBoxImage.Warning);
