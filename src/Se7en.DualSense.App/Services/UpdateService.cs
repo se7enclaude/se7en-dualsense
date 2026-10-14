@@ -141,8 +141,10 @@ public static class UpdateService
     {
         try
         {
-            if (Environment.ProcessPath is { } exe && File.Exists(exe + ".old"))
-                File.Delete(exe + ".old");
+            // Ancienne version laissée par une mise à jour (par l'appli : « .exe.old », par Seventh OS : « .exe.<date>.old »)
+            if (Environment.ProcessPath is { } exe && Path.GetDirectoryName(exe) is { } dir)
+                foreach (var old in Directory.EnumerateFiles(dir, Path.GetFileName(exe) + "*.old"))
+                    try { File.Delete(old); } catch { /* encore ouverte */ }
         }
         catch { /* encore verrouillé : au prochain démarrage */ }
     }
