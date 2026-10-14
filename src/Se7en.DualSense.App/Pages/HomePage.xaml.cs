@@ -44,6 +44,8 @@ public partial class HomePage : UserControl, ILivePage
             ControllerHost.Content = _view2D;
         }
         BuildButtonGlyphs();
+        int hour = DateTime.Now.Hour;
+        Greeting.Text = hour is >= 5 and < 18 ? "BONJOUR" : "BONSOIR";
         DemoBadge.Visibility = ControllerService.IsDemo ? Visibility.Visible : Visibility.Collapsed;
         SyncModeSelector(App.Controller?.ActiveProfile.Mode ?? OutputMode.DualShock4);
         RefreshDriverBanner();
@@ -246,6 +248,8 @@ public partial class HomePage : UserControl, ILivePage
 
     private void OnLauncherClick(object sender, RoutedEventArgs e) => LauncherWindow.Toggle();
 
+    private void OnDesktopClick(object sender, RoutedEventArgs e) => App.Controller.ToggleDesktopMode();
+
     // ───────────── Steam Input ─────────────
 
     private DateTime _lastSteamCheck;
@@ -302,6 +306,7 @@ public partial class HomePage : UserControl, ILivePage
     public void OnProfileChanged(Profile profile)
     {
         ProfileBadge.Text = "Profil · " + profile.Name;
+        DesktopCaption.Text = profile.Id == Profile.DesktopId ? "Actif · cliquer pour revenir" : "La manette pilote la souris";
         SyncModeSelector(profile.Mode);
         RefreshSteamHint();
     }
@@ -381,7 +386,7 @@ public partial class HomePage : UserControl, ILivePage
             _lastSteamCheck = DateTime.UtcNow;
             RefreshSteamHint();
             var left = App.Controller.BatteryRemaining();
-            Stamp.Caption = s.Charging != ChargingState.Discharging ? (s.Charging == ChargingState.Full ? "CHARGÉE" : "EN CHARGE")
+            BatteryCaption.Text = Stamp.Caption = s.Charging != ChargingState.Discharging ? (s.Charging == ChargingState.Full ? "CHARGÉE" : "EN CHARGE")
                 : left is { } t ? "≈ " + BatteryTracker.Format(t).ToUpperInvariant() : "BATTERIE";
         }
 
@@ -400,6 +405,8 @@ public partial class HomePage : UserControl, ILivePage
         if (value == _lastStamp) return;
         _lastStamp = value;
         Stamp.Value = value;
+        BatteryValue.Text = value.Replace("%", " %");
+        BatteryBar.Width = int.TryParse(value.TrimEnd('%'), out int pct) ? 120 * pct / 100.0 : 0;
     }
 
     private static void UpdateStick(byte rawX, byte rawY, StickVisualizer viz, TextBlock readout, TextBlock raw, ref string last)

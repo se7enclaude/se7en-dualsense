@@ -4,7 +4,7 @@ Application Windows pour utiliser une manette PS5 **DualSense** sur PC : lecture
 correction du drift des sticks, et compatibilité avec n'importe quel jeu (émulation DualShock 4 pour
 garder les icônes PlayStation, Xbox 360 en option, ou DualSense native).
 
-> **État** (v0.6) : émulation DualShock 4 / Xbox 360 / DualSense native / clavier-souris, masquage HidHide,
+> **État** (v0.7) : émulation DualShock 4 / Xbox 360 / DualSense native / clavier-souris, masquage HidHide,
 > anti-drift, mappage complet (clavier, souris, macros, couche secondaire, pavé tactile), plusieurs manettes,
 > manette 3D temps réel, exécutable autonome avec mises à jour. Détail et suite : [ROADMAP.md](ROADMAP.md).
 
@@ -35,7 +35,7 @@ Si la manette restait invisible après un arrêt brutal : `se7en DualSense.exe -
 - **Confort** : icône près de l'horloge, démarrage avec Windows, overlay en jeu, navigation à la manette, installation en un clic, **mises à jour automatiques** (publications GitHub).
 - **Diagnostic** : circularité des sticks, course des gâchettes, fréquence, historique du drift, rapport brut.
 
-Raccourcis : Ctrl + 1…9 pour les onglets, Échap pour fermer une fenêtre. Options : `--skip-intro`, `--minimized`, `--page=sticks`.
+Raccourcis : Ctrl + K pour la recherche rapide (onglets, réglages, profils, actions), Ctrl + 1…9 pour les onglets, Échap pour fermer une fenêtre. Options : `--skip-intro`, `--minimized`, `--page=sticks`.
 
 ## Prérequis
 - Windows 10 / 11 (x64)

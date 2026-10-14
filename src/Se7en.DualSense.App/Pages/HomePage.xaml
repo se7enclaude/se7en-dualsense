@@ -2,6 +2,97 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="clr-namespace:Se7en.DualSense.App.Controls">
+    <UserControl.Resources>
+        <!-- Tuile de mode de sortie : icône, nom, description ; la tuile choisie passe en encre -->
+        <Style x:Key="ModeTile" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" CornerRadius="18" Padding="18,16" Background="{DynamicResource Surface.Card}"
+                                BorderBrush="{DynamicResource Border.Hairline}" BorderThickness="1">
+                            <DockPanel>
+                                <Border x:Name="Chip" DockPanel.Dock="Top" Width="40" Height="40" CornerRadius="12" HorizontalAlignment="Left"
+                                        Background="{DynamicResource Surface.Inset}" Margin="0,0,0,14">
+                                    <c:AxisIcon x:Name="Ico" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Width="19" Height="19"
+                                                Foreground="{DynamicResource Text.Primary}" />
+                                </Border>
+                                <ContentPresenter x:Name="Content" />
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Border.Default}" />
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface.Raised}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Ink}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Ink}" />
+                                <!-- Le contenu (logique) hérite du Foreground du bouton -->
+                                <Setter Property="Foreground" Value="{DynamicResource OnInk}" />
+                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource Accent}" />
+                                <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource OnAccent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Raccourci : pastille d'icône, titre, sous-titre, flèche ; se soulève au survol -->
+        <Style x:Key="QuickAction" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="18" Padding="16" Background="{DynamicResource Surface.Card}"
+                                BorderBrush="{DynamicResource Border.Hairline}" BorderThickness="1">
+                            <Border.RenderTransform><TranslateTransform x:Name="Lift" /></Border.RenderTransform>
+                            <DockPanel>
+                                <c:AxisIcon x:Name="Arrow" DockPanel.Dock="Right" Data="{StaticResource Icon.ArrowUpRight}" Width="16" Height="16"
+                                            Foreground="{DynamicResource Text.Tertiary}" VerticalAlignment="Top" />
+                                <Border x:Name="Chip" DockPanel.Dock="Left" Width="42" Height="42" CornerRadius="13" Background="{DynamicResource Accent.Soft}"
+                                        VerticalAlignment="Center" Margin="0,0,14,0">
+                                    <c:AxisIcon x:Name="Ico" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Width="19" Height="19"
+                                                Foreground="{DynamicResource Accent}" />
+                                </Border>
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface.Raised}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Border.Default}" />
+                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource Accent}" />
+                                <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource OnAccent}" />
+                                <Setter TargetName="Arrow" Property="Foreground" Value="{DynamicResource Text.Primary}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="-3" Duration="0:0:0.16" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="0" Duration="0:0:0.2" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
     <StackPanel>
         <!-- ───────────── Bandeau : pilotes manquants / droits administrateur ───────────── -->
         <ContentControl x:Name="DriverBanner" Style="{StaticResource Card}" Padding="20" Margin="0,0,0,20" Visibility="Collapsed">
@@ -63,97 +154,167 @@
             </Grid>
         </ContentControl>
 
-        <!-- ───────────── Héros éditorial : grille pointillée, typo géante, manette devant ───────────── -->
-        <Grid Margin="0,0,0,28">
-            <Border CornerRadius="8" BorderBrush="{DynamicResource Border.Hairline}" BorderThickness="1" />
-            <Grid c:RoundedClip.Radius="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <!-- ───────────── Héros : scène sombre, manette 3D en vedette ───────────── -->
+        <Border CornerRadius="26" Margin="0,0,0,24" Height="430" c:RoundedClip.Radius="26">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#1D1D24" Offset="0" />
+                    <GradientStop Color="#0D0D10" Offset="0.6" />
+                    <GradientStop Color="#08080A" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="0.95*" />
+                    <ColumnDefinition Width="1.15*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Filets pointillés -->
-                <Line Grid.RowSpan="2" Grid.ColumnSpan="2" Style="{StaticResource Rule.H}" VerticalAlignment="Top" Margin="0,44,0,0" />
-                <Line Grid.RowSpan="2" Grid.ColumnSpan="2" Style="{StaticResource Rule.H}" VerticalAlignment="Bottom" Margin="0,0,0,44" />
-                <Line Grid.RowSpan="2" Style="{StaticResource Rule.V}" HorizontalAlignment="Left" Margin="32,0,0,0" />
-                <Line Grid.RowSpan="2" Grid.Column="1" Style="{StaticResource Rule.V}" HorizontalAlignment="Left" />
+                <!-- Halo de la couleur d'accent derrière la manette, filet pointillé -->
+                <Ellipse Grid.Column="1" Width="520" Height="320" Margin="0,0,-30,10" Opacity="0.6" IsHitTestVisible="False">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="{DynamicResource Color.Accent}" Offset="0" />
+                            <GradientStop Color="#00000000" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Line Grid.ColumnSpan="2" X1="0" X2="4000" Y1="0" Y2="0" Stroke="#1FFFFFFF" StrokeDashArray="3 4" VerticalAlignment="Bottom" Margin="0,0,0,56" IsHitTestVisible="False" />
 
-                <!-- Typo display géante en encre -->
-                <TextBlock Grid.ColumnSpan="2" Text="DUALSENSE" FontFamily="{StaticResource Font.Display}" FontSize="186"
-                           Foreground="{DynamicResource Ink}" Margin="48,40,0,0" LineHeight="160" LineStackingStrategy="BlockLineHeight"
-                           TextWrapping="NoWrap" />
-
-                <!-- Colonne gauche : état, accroche, actions -->
-                <StackPanel Grid.Row="1" Margin="48,28,24,64">
-                    <WrapPanel Margin="0,0,0,10">
+                <!-- Colonne gauche : salutation, titre, état, batterie -->
+                <StackPanel Margin="44,40,12,30" VerticalAlignment="Top">
+                    <TextBlock x:Name="Greeting" Text="BONJOUR" FontFamily="{StaticResource Font.Sans}" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource Highlight}" />
+                    <TextBlock Text="DUALSENSE" FontFamily="{StaticResource Font.Display}" FontSize="84" Foreground="White"
+                               Margin="0,6,0,0" LineHeight="84" LineStackingStrategy="BlockLineHeight" />
+                    <TextBlock x:Name="HeroHint" FontFamily="{StaticResource Font.Sans}" FontSize="14" Foreground="#B3FFFFFF" TextWrapping="Wrap"
+                               MaxWidth="360" HorizontalAlignment="Left" Margin="0,14,0,18" LineHeight="21"
+                               Text="En attente de la manette. Branchez-la en USB ou connectez-la en Bluetooth." />
+                    <WrapPanel>
                         <c:Badge x:Name="StatusBadge" ShowDot="True" Text="Déconnectée" Tone="Neutral" Margin="0,0,8,8" />
                         <c:Badge x:Name="LinkBadge" Text="USB" Visibility="Collapsed" Margin="0,0,8,8" />
                         <c:Badge x:Name="OutputBadge" Text="—" Tone="Accent" Margin="0,0,8,8" />
-                        <c:Badge x:Name="ProfileBadge" Text="Par défaut" Tone="Inverse" Margin="0,0,8,8" />
+                        <c:Badge x:Name="ProfileBadge" Text="Par défaut" Tone="Highlight" Margin="0,0,8,8" />
                         <c:Badge x:Name="DemoBadge" Text="Mode démo" Tone="Highlight" Visibility="Collapsed" />
                     </WrapPanel>
-                    <TextBlock Text="Votre manette, dans tous vos jeux." Style="{StaticResource Text.H1}" TextWrapping="Wrap" MaxWidth="380" HorizontalAlignment="Left" />
-                    <TextBlock x:Name="HeroHint" Style="{StaticResource Text.Body}" Margin="0,12,0,20" MaxWidth="340" HorizontalAlignment="Left"
-                               Text="En attente de la manette. Branchez-la en USB ou connectez-la en Bluetooth." />
-
-                    <TextBlock Text="LES JEUX VOIENT" Style="{StaticResource Text.Overline}" Margin="0,0,0,8" />
-                    <Border CornerRadius="20" Background="{DynamicResource Surface.Inset}" Padding="3" HorizontalAlignment="Left">
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="ModeDs4" Style="{StaticResource Segment}" GroupName="OutputMode" Content="DualShock 4" Checked="OnModeChecked" />
-                            <RadioButton x:Name="ModeXbox" Style="{StaticResource Segment}" GroupName="OutputMode" Content="Xbox 360" Checked="OnModeChecked" />
-                            <RadioButton x:Name="ModeNative" Style="{StaticResource Segment}" GroupName="OutputMode" Content="Native" Checked="OnModeChecked" ToolTip="DualSense native : le jeu voit la vraie manette" />
-                            <RadioButton x:Name="ModeKbm" Style="{StaticResource Segment}" GroupName="OutputMode" Content="Clavier / souris" Checked="OnModeChecked" />
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <TextBlock x:Name="BatteryValue" Text="—" FontFamily="{StaticResource Font.Display}" FontSize="44" Foreground="White" VerticalAlignment="Bottom" />
+                        <StackPanel Margin="14,0,0,8" VerticalAlignment="Bottom">
+                            <TextBlock x:Name="BatteryCaption" Text="BATTERIE" FontFamily="{StaticResource Font.Sans}" FontSize="11" FontWeight="SemiBold" Foreground="#99FFFFFF" />
+                            <Border Width="120" Height="6" CornerRadius="3" Background="#26FFFFFF" HorizontalAlignment="Left" Margin="0,6,0,0">
+                                <Border x:Name="BatteryBar" Width="0" CornerRadius="3" HorizontalAlignment="Left" Background="{DynamicResource Highlight}" />
+                            </Border>
                         </StackPanel>
-                    </Border>
-                    <TextBlock x:Name="ModeMessage" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left" Margin="0,10,0,24" />
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource IconButton.Outline}" ToolTip="Profils" Click="OnProfilesClick" Margin="0,0,8,0">
-                            <c:AxisIcon Data="{StaticResource Icon.Box}" Width="18" Height="18"
-                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-                        </Button>
-                        <Button Style="{StaticResource IconButton.Outline}" ToolTip="Lanceur de jeux plein écran (PS + R3)" Click="OnLauncherClick" Margin="0,0,8,0">
-                            <c:AxisIcon Data="{StaticResource Icon.LibraryBig}" Width="18" Height="18"
-                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-                        </Button>
-                        <Button Height="46" Padding="24,0" Cursor="Hand" FocusVisualStyle="{x:Null}" Click="OnCustomizeClick">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="Bd" CornerRadius="23" Background="{DynamicResource Ink}" Padding="{TemplateBinding Padding}">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock x:Name="Txt" Text="Personnaliser" FontFamily="{StaticResource Font.Sans}" FontSize="15" FontWeight="Medium"
-                                                       Foreground="{DynamicResource OnInk}" VerticalAlignment="Center" />
-                                            <c:AxisIcon x:Name="Arrow" Data="{StaticResource Icon.ArrowUpRight}" Width="18" Height="18" Margin="10,0,0,0"
-                                                        Foreground="{DynamicResource OnInk}" />
-                                        </StackPanel>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Accent}" />
-                                            <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource OnAccent}" />
-                                            <Setter TargetName="Arrow" Property="Foreground" Value="{DynamicResource OnAccent}" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Colonne droite : la manette en direct, devant la typo, et le tampon -->
-                <Grid Grid.Row="1" Grid.Column="1">
-                    <ContentControl x:Name="ControllerHost" Width="500" Height="400" Margin="0,-160,0,-10" VerticalAlignment="Top" HorizontalAlignment="Center" Focusable="False" />
-                    <c:StampBadge x:Name="Stamp" Value="—" Caption="BATTERIE" Width="112" Height="112"
-                                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,28" RenderTransformOrigin="0.5,0.5">
-                        <c:StampBadge.RenderTransform><RotateTransform Angle="-8" /></c:StampBadge.RenderTransform>
-                    </c:StampBadge>
-                </Grid>
+                <!-- Colonne droite : la manette 3D -->
+                <ContentControl x:Name="ControllerHost" Grid.Column="1" Width="560" Height="440" Margin="-20,-18,-30,0" VerticalAlignment="Top" Focusable="False" />
+                <c:StampBadge x:Name="Stamp" Grid.Column="1" Value="—" Caption="BATTERIE" Visibility="Collapsed" />
+                <TextBlock Grid.Column="1" Text="Glissez la manette pour la faire tourner" FontFamily="{StaticResource Font.Sans}" FontSize="11" Foreground="#66FFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,20" IsHitTestVisible="False" />
             </Grid>
+        </Border>
+
+        <!-- ───────────── Mode de sortie : 4 tuiles ───────────── -->
+        <DockPanel Margin="0,0,0,12">
+            <TextBlock x:Name="ModeMessage" DockPanel.Dock="Right" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" MaxWidth="560" TextAlignment="Right" VerticalAlignment="Bottom" />
+            <TextBlock Text="LES JEUX VOIENT" Style="{StaticResource Text.Overline}" VerticalAlignment="Bottom" />
+        </DockPanel>
+        <UniformGrid Columns="4" Margin="0,0,-12,26">
+            <RadioButton x:Name="ModeDs4" Style="{StaticResource ModeTile}" GroupName="OutputMode" Tag="{StaticResource Icon.Gamepad2}" Checked="OnModeChecked">
+                <StackPanel>
+                    <TextBlock Text="DualShock 4" FontFamily="{StaticResource Font.Sans}" FontSize="15" FontWeight="SemiBold" />
+                    <TextBlock Text="Icônes PlayStation dans les jeux" FontFamily="{StaticResource Font.Sans}" FontSize="12" Opacity="0.65" Margin="0,3,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton x:Name="ModeXbox" Style="{StaticResource ModeTile}" GroupName="OutputMode" Tag="{StaticResource Icon.Joystick}" Checked="OnModeChecked">
+                <StackPanel>
+                    <TextBlock Text="Xbox 360" FontFamily="{StaticResource Font.Sans}" FontSize="15" FontWeight="SemiBold" />
+                    <TextBlock Text="Reconnue par tous les jeux" FontFamily="{StaticResource Font.Sans}" FontSize="12" Opacity="0.65" Margin="0,3,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton x:Name="ModeNative" Style="{StaticResource ModeTile}" GroupName="OutputMode" Tag="{StaticResource Icon.Zap}" Checked="OnModeChecked">
+                <StackPanel>
+                    <TextBlock Text="DualSense native" FontFamily="{StaticResource Font.Sans}" FontSize="15" FontWeight="SemiBold" />
+                    <TextBlock Text="Haptique et gâchettes du jeu" FontFamily="{StaticResource Font.Sans}" FontSize="12" Opacity="0.65" Margin="0,3,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton x:Name="ModeKbm" Style="{StaticResource ModeTile}" GroupName="OutputMode" Tag="{StaticResource Icon.Keyboard}" Checked="OnModeChecked">
+                <StackPanel>
+                    <TextBlock Text="Clavier / souris" FontFamily="{StaticResource Font.Sans}" FontSize="15" FontWeight="SemiBold" />
+                    <TextBlock Text="Bureau et jeux sans manette" FontFamily="{StaticResource Font.Sans}" FontSize="12" Opacity="0.65" Margin="0,3,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+        </UniformGrid>
+
+        <!-- ───────────── Raccourcis ───────────── -->
+        <TextBlock Text="RACCOURCIS" Style="{StaticResource Text.Overline}" Margin="0,0,0,12" />
+        <UniformGrid Columns="4" Margin="0,0,-12,26">
+            <Button Style="{StaticResource QuickAction}" Tag="{StaticResource Icon.Target}" Click="OnCustomizeClick">
+                <StackPanel>
+                    <TextBlock Text="Calibrer" Style="{StaticResource Text.Base}" FontWeight="SemiBold" FontSize="14" />
+                    <TextBlock Text="Corriger le drift" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource QuickAction}" Tag="{StaticResource Icon.LibraryBig}" Click="OnLauncherClick">
+                <StackPanel>
+                    <TextBlock Text="Lanceur" Style="{StaticResource Text.Base}" FontWeight="SemiBold" FontSize="14" />
+                    <TextBlock Text="Jeux en plein écran" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource QuickAction}" Tag="{StaticResource Icon.Move}" Click="OnDesktopClick">
+                <StackPanel>
+                    <TextBlock Text="Mode bureau" Style="{StaticResource Text.Base}" FontWeight="SemiBold" FontSize="14" />
+                    <TextBlock x:Name="DesktopCaption" Text="La manette pilote la souris" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource QuickAction}" Tag="{StaticResource Icon.Layers}" Click="OnProfilesClick">
+                <StackPanel>
+                    <TextBlock Text="Profils" Style="{StaticResource Text.Base}" FontWeight="SemiBold" FontSize="14" />
+                    <TextBlock Text="Un réglage par jeu" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                </StackPanel>
+            </Button>
+        </UniformGrid>
+
+        <!-- ───────────── État ───────────── -->
+        <Grid Margin="0,0,0,26">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ContentControl Grid.Column="0" Style="{StaticResource Card.Small}">
+                <DockPanel>
+                    <c:AxisIcon DockPanel.Dock="Right" Data="{StaticResource Icon.Activity}" Width="18" Height="18" Foreground="{DynamicResource Text.Tertiary}" VerticalAlignment="Top" />
+                    <StackPanel>
+                        <TextBlock Text="FRÉQUENCE" Style="{StaticResource Text.Overline}" />
+                        <TextBlock x:Name="RateValue" Text="—" Style="{StaticResource Text.Stat}" Margin="0,12,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </ContentControl>
+            <ContentControl Grid.Column="2" Style="{StaticResource Card.Small}">
+                <DockPanel>
+                    <c:AxisIcon x:Name="LinkIcon" DockPanel.Dock="Right" Data="{StaticResource Icon.Usb}" Width="18" Height="18" Foreground="{DynamicResource Text.Tertiary}" VerticalAlignment="Top" />
+                    <StackPanel>
+                        <TextBlock Text="CONNEXION" Style="{StaticResource Text.Overline}" />
+                        <TextBlock x:Name="LinkValue" Text="AUCUNE" Style="{StaticResource Text.Stat}" Margin="0,12,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </ContentControl>
+            <ContentControl Grid.Column="4" Style="{StaticResource Card.Small}">
+                <DockPanel>
+                    <c:AxisIcon DockPanel.Dock="Right" Data="{StaticResource Icon.Layers}" Width="18" Height="18" Foreground="{DynamicResource Text.Tertiary}" VerticalAlignment="Top" />
+                    <StackPanel>
+                        <TextBlock Text="MODE DE SORTIE" Style="{StaticResource Text.Overline}" />
+                        <TextBlock x:Name="ModeStat" Text="—" Style="{StaticResource Text.Stat}" Margin="0,12,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </ContentControl>
         </Grid>
 
+        <TextBlock Text="EN DIRECT" Style="{StaticResource Text.Overline}" Margin="0,0,0,12" />
         <!-- ───────────── Entrées en direct ───────────── -->
         <Grid>
             <Grid.ColumnDefinitions>
@@ -226,42 +387,5 @@
             </StackPanel>
         </ContentControl>
 
-        <!-- ───────────── Chiffres clés (Anton) ───────────── -->
-        <Grid Margin="0,16,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <ContentControl Grid.Column="0" Style="{StaticResource Card.Small}">
-                <StackPanel>
-                    <DockPanel>
-                        <c:AxisIcon DockPanel.Dock="Right" Data="{StaticResource Icon.Activity}" Width="16" Height="16" Foreground="{DynamicResource Text.Tertiary}" />
-                        <TextBlock Text="FRÉQUENCE" Style="{StaticResource Text.Overline}" />
-                    </DockPanel>
-                    <TextBlock x:Name="RateValue" Text="—" Style="{StaticResource Text.Stat}" Margin="0,16,0,0" />
-                </StackPanel>
-            </ContentControl>
-            <ContentControl Grid.Column="2" Style="{StaticResource Card.Small}">
-                <StackPanel>
-                    <DockPanel>
-                        <c:AxisIcon x:Name="LinkIcon" DockPanel.Dock="Right" Data="{StaticResource Icon.Usb}" Width="16" Height="16" Foreground="{DynamicResource Text.Tertiary}" />
-                        <TextBlock Text="CONNEXION" Style="{StaticResource Text.Overline}" />
-                    </DockPanel>
-                    <TextBlock x:Name="LinkValue" Text="AUCUNE" Style="{StaticResource Text.Stat}" Margin="0,16,0,0" />
-                </StackPanel>
-            </ContentControl>
-            <ContentControl Grid.Column="4" Style="{StaticResource Card.Small}">
-                <StackPanel>
-                    <DockPanel>
-                        <c:AxisIcon DockPanel.Dock="Right" Data="{StaticResource Icon.Layers}" Width="16" Height="16" Foreground="{DynamicResource Text.Tertiary}" />
-                        <TextBlock Text="MODE DE SORTIE" Style="{StaticResource Text.Overline}" />
-                    </DockPanel>
-                    <TextBlock x:Name="ModeStat" Text="—" Style="{StaticResource Text.Stat}" Margin="0,16,0,0" />
-                </StackPanel>
-            </ContentControl>
-        </Grid>
     </StackPanel>
 </UserControl>

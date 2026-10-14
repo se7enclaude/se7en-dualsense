@@ -78,3 +78,10 @@ Légende : ✅ fait · 🧪 fait, à tester en jeu · ⬜ à faire
 - ✅ Effets sonores de l'interface (clics, bascules, carillons, notifications, intro)
 - ✅ 62 tests unitaires
 - ✖ Non retenu : anti-recul (triche en ligne), interface en anglais, signature numérique
+
+## Version 0.7
+- ✅ Nouvel accueil : scène sombre avec la manette 3D en vedette, batterie et autonomie en grand, 4 tuiles de mode, raccourcis
+- ✅ Onglets latéraux redessinés : pastilles d'icônes, pilule qui glisse vers l'onglet choisi ; rail vertical retiré
+- ✅ Recherche rapide (Ctrl + K) : onglets, réglages, profils, modes, actions
+- ✅ Logo « 7 » dans la famille des applis se7en · nettoyage avant désinstallation (`--uninstall-cleanup`)
+- ✅ Installation de HidHide : vérification de signature via Windows (signature horodatée acceptée)

@@ -77,6 +77,7 @@ public partial class MainWindow : Window, IShell
             Loaded += (_, _) => ShowOnboardingIfNeeded();
         }
         UpdateThemeIcon();
+        Loaded += (_, _) => Dispatcher.BeginInvoke(() => MovePill(false), System.Windows.Threading.DispatcherPriority.Loaded);
 
         var c = App.Controller;
         c.DeviceChanged += OnDeviceChanged;
@@ -117,7 +118,9 @@ public partial class MainWindow : Window, IShell
 
         if (!ControllerService.IsDemo)
             _tray = new TrayService(ShowFromTray, Quit);
-        if (App.StartPage is "launcher" or "keyboard")
+        if (App.StartPage == "search")
+            Dispatcher.BeginInvoke(() => CommandPalette.Show(this), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        else if (App.StartPage is "launcher" or "keyboard")
             Dispatcher.BeginInvoke(App.StartPage == "launcher" ? LauncherWindow.Toggle : KeyboardOverlay.Toggle, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         else if (App.StartPage != null)
             Dispatcher.BeginInvoke(() => Navigate(App.StartPage), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -163,7 +166,7 @@ public partial class MainWindow : Window, IShell
             if (sec != section)
             {
                 section = sec;
-                var header = Ui.Text(sec, "Text.Overline", new Thickness(14, Nav.Children.Count == 0 ? 0 : 18, 0, 8));
+                var header = Ui.Text(sec, "Text.Overline", new Thickness(14, Nav.Children.Count == 0 ? 0 : 14, 0, 6));
                 header.Tag = "section";
                 Nav.Children.Add(header);
             }
@@ -225,13 +228,31 @@ public partial class MainWindow : Window, IShell
             }
         }
 
-        foreach (var (button, target) in new[] { (RailGames, "games"), (RailSticks, "sticks"), (RailMapping, "mapping") })
-            button.SetResourceReference(ForegroundProperty, key == target ? "Text.Primary" : "Text.Tertiary");
+        MovePill(true);
+    }
+
+    /// <summary>Fait glisser la pilule de fond sous l'onglet choisi.</summary>
+    private void MovePill(bool animate)
+    {
+        if (!_navItems.TryGetValue(_current, out var item) || !item.IsLoaded) return;
+        var top = item.TranslatePoint(new Point(0, 0), NavGrid).Y;
+        NavPill.Height = item.ActualHeight;
+        if (NavPill.Opacity < 1 || !animate)
+        {
+            NavPillShift.BeginAnimation(TranslateTransform.YProperty, null);
+            NavPillShift.Y = top;
+            NavPill.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(200)));
+            return;
+        }
+        NavPillShift.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(top, TimeSpan.FromMilliseconds(320)) { EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.25 } });
     }
 
     private void OnRailClick(object sender, RoutedEventArgs e) => Navigate((string)((FrameworkElement)sender).Tag);
 
     private void OnProfileLinkClick(object sender, RoutedEventArgs e) => Navigate("games");
+
+    private void OnSearchClick(object sender, RoutedEventArgs e) => CommandPalette.Show(this);
 
     /// <summary>Ctrl + 1…9 : onglets ; Échap : fermer la fenêtre modale.</summary>
     private void OnShortcut(object sender, KeyEventArgs e)
@@ -243,6 +264,12 @@ public partial class MainWindow : Window, IShell
             return;
         }
         if ((Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+        if (e.Key == Key.K)
+        {
+            if (ModalHost.Visibility != Visibility.Visible) CommandPalette.Show(this);
+            e.Handled = true;
+            return;
+        }
         int index = e.Key >= Key.D1 && e.Key <= Key.D9 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad9 ? e.Key - Key.NumPad1 : -1;
         if (index >= 0 && index < Tabs.Length)
         {
@@ -257,10 +284,10 @@ public partial class MainWindow : Window, IShell
     {
         bool compact = ActualWidth < 1180;
         SidebarColumn.Width = new GridLength(compact ? 84 : 248);
-        RailColumn.Width = new GridLength(compact ? 0 : 52);
-        Rail.Visibility = RailRule.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        // Le rail vertical de droite est retiré : les onglets de la barre latérale suffisent
         Brand.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         DeviceCard.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        SearchButton.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         Sidebar.Margin = new Thickness(compact ? 12 : 16, 24, compact ? 12 : 16, 16);
         PageHost.Margin = new Thickness(compact ? 24 : 40, 8, compact ? 24 : 40, 40);
         foreach (var child in Nav.Children)
@@ -270,6 +297,7 @@ public partial class MainWindow : Window, IShell
         }
         foreach (var (key, item) in _navItems)
             item.Content = compact ? null : Tabs.First(t => t.Key == key).Label;
+        Dispatcher.BeginInvoke(() => MovePill(false), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     // ───────────── IShell ─────────────
