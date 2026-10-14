@@ -135,6 +135,12 @@ public partial class DualSenseView : UserControl
         _finger1.SetColor(_accent);
     }
 
+    /// <summary>
+    /// Effets colorés sur la manette (boutons qui s'allument, anneaux des sticks, lueur des gâchettes,
+    /// doigts sur le pavé). Désactivés sur l'accueil : les retours d'appui sont dans les cartes dédiées.
+    /// </summary>
+    public bool ShowInputOverlays { get; set; } = true;
+
     /// <summary>À appeler à chaque image avec le dernier état connu.</summary>
     public void Update(in FrameData frame)
     {
@@ -167,13 +173,14 @@ public partial class DualSenseView : UserControl
         Tilt.Angle = _tilt;
 
         // ── Boutons ──
-        var buttons = connected ? s.Buttons : DualSenseButtons.None;
+        bool overlays = connected && ShowInputOverlays;
+        var buttons = overlays ? s.Buttons : DualSenseButtons.None;
         foreach (var p in _presses)
             p.Step((buttons & p.Flag) != 0 ? 1 : 0, press);
 
         // ── Gâchettes : lueur derrière la manette ──
-        _l2 += ((connected ? s.L2 / 255.0 : 0) - _l2) * smooth;
-        _r2 += ((connected ? s.R2 / 255.0 : 0) - _r2) * smooth;
+        _l2 += ((overlays ? s.L2 / 255.0 : 0) - _l2) * smooth;
+        _r2 += ((overlays ? s.R2 / 255.0 : 0) - _r2) * smooth;
         L2Glow.Opacity = _l2;
         R2Glow.Opacity = _r2;
 
@@ -189,14 +196,14 @@ public partial class DualSenseView : UserControl
         _r3 += (((buttons & DualSenseButtons.R3) != 0 ? 1 : 0) - _r3) * press;
         double lDeflect = Math.Min(1, Math.Sqrt(_lx * _lx + _ly * _ly));
         double rDeflect = Math.Min(1, Math.Sqrt(_rx * _rx + _ry * _ry));
-        _leftRingBrush.Color = WithAlpha(_accent, Math.Max(_l3, lDeflect * 0.6));
-        _rightRingBrush.Color = WithAlpha(_accent, Math.Max(_r3, rDeflect * 0.6));
+        _leftRingBrush.Color = WithAlpha(_accent, overlays ? Math.Max(_l3, lDeflect * 0.6) : 0);
+        _rightRingBrush.Color = WithAlpha(_accent, overlays ? Math.Max(_r3, rDeflect * 0.6) : 0);
 
         // ── Pavé tactile ──
         _touchClick += (((buttons & DualSenseButtons.Touchpad) != 0 ? 1 : 0) - _touchClick) * press;
         TouchTint.Opacity = _touchClick;
-        _finger0.Step(connected ? s.Touch0 : default, press);
-        _finger1.Step(connected ? s.Touch1 : default, press);
+        _finger0.Step(overlays ? s.Touch0 : default, press);
+        _finger1.Step(overlays ? s.Touch1 : default, press);
 
         // ── Barre lumineuse : couleur réellement envoyée, éteinte si déconnectée ──
         var o = frame.Output;
@@ -205,7 +212,8 @@ public partial class DualSenseView : UserControl
             lightbar = LightbarOff;
         _lightbarBrush.Color = lightbar;
         double breathe = 0.4 + 0.25 * (Math.Sin(now * 2 * Math.PI / 2.8) + 1) / 2;
-        LightbarGlowL.Opacity = LightbarGlowR.Opacity = connected ? breathe : 0;
+        LightbarGlowL.Opacity = LightbarGlowR.Opacity = overlays ? breathe : 0;
+        LightbarL.Opacity = LightbarR.Opacity = ShowInputOverlays ? 1 : 0;
     }
 
     private static double Normalize(byte v) => Math.Clamp((v - 127.5) / 127.5, -1, 1);
@@ -248,7 +256,7 @@ public partial class DualSenseView : UserControl
     private sealed class FingerAnim
     {
         // Zone utile du pavé dans le repère de la photo
-        private const double Left = 172, Top = 42, Width = 162, Height = 84;
+        private const double Left = 166, Top = 56, Width = 173, Height = 84;
 
         private readonly Ellipse _dot;
         private readonly DropShadowEffect _glow;

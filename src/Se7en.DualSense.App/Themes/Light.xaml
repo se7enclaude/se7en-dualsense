@@ -1,49 +1,58 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Axis — thème clair (référence). Gris froids PS5, accent bleu électrique. -->
-    <Color x:Key="Color.Accent">#1A1AF0</Color>
-    <Color x:Key="Color.AccentSoft">#EEF0FF</Color>
+    <!-- Axis (itération 2, éditoriale) — thème clair : gris neutres, encre, accent violet, surbrillance citron. -->
+    <Color x:Key="Color.Accent">#5B2DE0</Color>
+    <Color x:Key="Color.AccentSoft">#EFEAFD</Color>
+    <Color x:Key="Color.Highlight">#D4F53C</Color>
+    <Color x:Key="Color.Ink">#111114</Color>
     <Color x:Key="Color.Danger">#E0353B</Color>
-    <Color x:Key="Color.ShadowLow">#8088A0</Color>
 
-    <SolidColorBrush x:Key="Surface.Page" Color="#DEE1EA" />
-    <SolidColorBrush x:Key="Surface.Card" Color="#E6E9F0" />
-    <SolidColorBrush x:Key="Surface.Raised" Color="#EEF0F5" />
-    <SolidColorBrush x:Key="Surface.Inset" Color="#D3D7E1" />
+    <SolidColorBrush x:Key="Ink" Color="#111114" />
+    <SolidColorBrush x:Key="OnInk" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Highlight" Color="#D4F53C" />
+    <SolidColorBrush x:Key="OnHighlight" Color="#111114" />
+    <SolidColorBrush x:Key="Signal" Color="#1A1AF0" />
+
+    <SolidColorBrush x:Key="Surface.Page" Color="#E7E8EB" />
+    <SolidColorBrush x:Key="Surface.Card" Color="#F2F3F5" />
+    <SolidColorBrush x:Key="Surface.Raised" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Surface.Inset" Color="#DCDDE1" />
     <SolidColorBrush x:Key="Surface.Solid" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="Surface.Inverse" Color="#22252C" />
+    <SolidColorBrush x:Key="Surface.Inverse" Color="#111114" />
 
-    <SolidColorBrush x:Key="Text.Primary" Color="#22252C" />
-    <SolidColorBrush x:Key="Text.Secondary" Color="#535967" />
-    <SolidColorBrush x:Key="Text.Tertiary" Color="#6B7282" />
+    <SolidColorBrush x:Key="Text.Primary" Color="#111114" />
+    <SolidColorBrush x:Key="Text.Secondary" Color="#53565F" />
+    <SolidColorBrush x:Key="Text.Tertiary" Color="#6C6F79" />
     <SolidColorBrush x:Key="Text.Inverse" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="Text.Accent" Color="#1A1AF0" />
+    <SolidColorBrush x:Key="Text.Accent" Color="#5B2DE0" />
 
-    <SolidColorBrush x:Key="Border.Subtle" Color="#1422252C" />
-    <SolidColorBrush x:Key="Border.Default" Color="#2422252C" />
-    <SolidColorBrush x:Key="Border.Strong" Color="#22252C" />
+    <SolidColorBrush x:Key="Border.Subtle" Color="#14111114" />
+    <SolidColorBrush x:Key="Border.Default" Color="#24111114" />
+    <SolidColorBrush x:Key="Border.Strong" Color="#111114" />
+    <SolidColorBrush x:Key="Border.Dashed" Color="#52111114" />
+    <SolidColorBrush x:Key="Border.Hairline" Color="#17111114" />
 
-    <SolidColorBrush x:Key="Accent" Color="#1A1AF0" />
-    <SolidColorBrush x:Key="Accent.Hover" Color="#1212C4" />
-    <SolidColorBrush x:Key="Accent.Press" Color="#0C0C8F" />
-    <SolidColorBrush x:Key="Accent.Soft" Color="#EEF0FF" />
-    <SolidColorBrush x:Key="Accent.Line" Color="#8C95F8" />
+    <SolidColorBrush x:Key="Accent" Color="#5B2DE0" />
+    <SolidColorBrush x:Key="Accent.Hover" Color="#4A20C2" />
+    <SolidColorBrush x:Key="Accent.Press" Color="#381795" />
+    <SolidColorBrush x:Key="Accent.Soft" Color="#EFEAFD" />
+    <SolidColorBrush x:Key="Accent.Line" Color="#9F84F0" />
     <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF" />
 
     <SolidColorBrush x:Key="Success" Color="#17A06B" />
+    <SolidColorBrush x:Key="Success.Text" Color="#117850" />
     <SolidColorBrush x:Key="Success.Soft" Color="#D7F2E6" />
     <SolidColorBrush x:Key="Warning" Color="#D98A1C" />
+    <SolidColorBrush x:Key="Warning.Text" Color="#8D5A12" />
     <SolidColorBrush x:Key="Warning.Soft" Color="#F8E8CF" />
     <SolidColorBrush x:Key="Danger" Color="#E0353B" />
+    <SolidColorBrush x:Key="Danger.Text" Color="#A8282C" />
     <SolidColorBrush x:Key="Danger.Soft" Color="#F9DADB" />
-    <SolidColorBrush x:Key="Neutral.Soft" Color="#D3D7E1" />
-    <SolidColorBrush x:Key="Veil" Color="#1422252C" />
+    <SolidColorBrush x:Key="Neutral.Soft" Color="#DCDDE1" />
+    <SolidColorBrush x:Key="Veil" Color="#14111114" />
 
-    <!-- Ombres neumorphiques : halo clair haut-gauche + ombre grise bas-droite -->
-    <DropShadowEffect x:Key="Shadow.Highlight" Color="White" Direction="135" ShadowDepth="8" BlurRadius="16" Opacity="0.75" />
-    <DropShadowEffect x:Key="Shadow.Low" Color="#8088A0" Direction="309" ShadowDepth="12" BlurRadius="24" Opacity="0.28" />
-    <DropShadowEffect x:Key="Shadow.HighlightSm" Color="White" Direction="135" ShadowDepth="4" BlurRadius="8" Opacity="0.7" />
-    <DropShadowEffect x:Key="Shadow.LowSm" Color="#8088A0" Direction="309" ShadowDepth="6" BlurRadius="12" Opacity="0.26" />
-    <DropShadowEffect x:Key="Shadow.Pop" Color="#181C2C" Direction="270" ShadowDepth="12" BlurRadius="40" Opacity="0.28" />
-    <DropShadowEffect x:Key="Shadow.Glow" Color="#1A1AF0" Direction="270" ShadowDepth="4" BlurRadius="22" Opacity="0.45" />
+    <!-- Ombres : seulement pour les calques flottants (produit, dialogues, toasts) -->
+    <DropShadowEffect x:Key="Shadow.Pop" Color="#111114" Direction="270" ShadowDepth="16" BlurRadius="48" Opacity="0.3" />
+    <DropShadowEffect x:Key="Shadow.Float" Color="#111114" Direction="270" ShadowDepth="24" BlurRadius="56" Opacity="0.32" />
+    <DropShadowEffect x:Key="Shadow.Glow" Color="#5B2DE0" Direction="270" ShadowDepth="4" BlurRadius="22" Opacity="0.45" />
 </ResourceDictionary>

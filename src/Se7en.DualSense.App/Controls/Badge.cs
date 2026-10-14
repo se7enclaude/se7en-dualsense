@@ -10,6 +10,8 @@ public enum BadgeTone
     Success,
     Warning,
     Danger,
+    Inverse,
+    Highlight,
 }
 
 /// <summary>Pastille d'état (pilule) avec point coloré optionnel.</summary>

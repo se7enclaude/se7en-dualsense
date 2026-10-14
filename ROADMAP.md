@@ -5,20 +5,22 @@ Légende : ✅ fait · 🔜 phase en cours · ⬜ à faire
 
 ---
 
-## Phase 1 — Lecture de la manette ✅ (à valider sur la vraie manette)
+## Phase 1 — Lecture de la manette ✅ (validée sur la vraie manette)
 - ✅ Détection USB / Bluetooth, reconnexion automatique
 - ✅ Parsing des rapports 0x01 (USB), 0x31 (BT, CRC32), rapport BT réduit
 - ✅ Rapports de sortie (vibrations, barre lumineuse, LED) avec CRC32 en BT
 - ✅ Outil console de test
 - ✅ Interface Axis : accueil avec la DualSense (photo) animée en direct, thème clair/sombre, mode démo
 
-## Phase 2 — Sortie virtuelle et modes de jeu
-- ⬜ Vérification de ViGEmBus / HidHide au lancement + téléchargement et installation automatiques
-- ⬜ DualShock 4 virtuelle (icônes PlayStation), pavé tactile et bouton PS compris
-- ⬜ Xbox 360 virtuelle
-- ⬜ DualSense native (passthrough, lecture seule) avec mention « anti-drift inactif »
-- ⬜ Masquage HidHide sûr (liste blanche, démasquage garanti à la fermeture ou au plantage)
-- ⬜ Bascule de mode en un clic, sans redémarrage (les 3 points de l'accueil = DS4 / Natif / Xbox)
+## Phase 2 — Sortie virtuelle et modes de jeu 🔜 (à tester en jeu)
+- ✅ Vérification de ViGEmBus / HidHide au lancement + téléchargement (signature vérifiée) et installation guidées
+- ✅ DualShock 4 virtuelle (icônes PlayStation), pavé tactile, gyroscope et bouton PS compris — vérifiée sur la vraie manette
+- ✅ Xbox 360 virtuelle
+- ✅ DualSense native (passthrough, lecture seule) avec mention « anti-drift inactif »
+- ✅ Masquage HidHide sûr (liste blanche, journal, démasquage à la fermeture / au plantage, option `--unhide-all`)
+- ✅ Bascule de mode en un clic, sans redémarrage (sélecteur « Les jeux voient » sur l'accueil)
+- ✅ Vibrations et barre lumineuse du jeu renvoyées vers la DualSense
+- ✅ Tests unitaires des conversions (rapport réel, DS4, Xbox, HidHide)
 - ⬜ Détection de Steam Input (avertissement double entrée)
 - ⬜ **Plusieurs manettes** en même temps (une manette virtuelle par DualSense) — à prévoir dès cette phase car cela structure le moteur
 

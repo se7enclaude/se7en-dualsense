@@ -8,3 +8,9 @@ TestResults/
 # Photo de la manette : image produit protégée, non versionnée (voir README)
 src/Se7en.DualSense.App/Assets/Images/*.png
 __pycache__/
+
+# Modèles 3D sources (lourds, licence propre à chaque modèle)
+*.glb
+*.gltf
+*.blend
+*.blend1

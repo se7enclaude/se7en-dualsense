@@ -1,6 +1,26 @@
 using System.Diagnostics;
 using System.Text;
+using HidSharp;
 using Se7en.DualSense.Hid;
+
+// Diagnostic : --dump affiche quelques rapports bruts en hexadécimal puis quitte
+// --dump-ds4 : lit la DualShock 4 virtuelle créée par l'application (ce que voient les jeux)
+if (args.Contains("--dump") || args.Contains("--dump-ds4"))
+{
+    bool virtualDs4 = args.Contains("--dump-ds4");
+    var dev = DeviceList.Local.GetHidDevices(DualSenseIds.SonyVendorId)
+        .FirstOrDefault(d => virtualDs4 ? d.ProductID == 0x05C4 : DualSenseIds.IsSupported(d.VendorID, d.ProductID));
+    if (dev == null) { Console.WriteLine("Aucune DualSense."); return; }
+    Console.WriteLine($"{dev.DevicePath}  in={dev.GetMaxInputReportLength()} out={dev.GetMaxOutputReportLength()} feat={dev.GetMaxFeatureReportLength()}");
+    using var st = dev.Open();
+    var buf = new byte[dev.GetMaxInputReportLength()];
+    for (int i = 0; i < 3; i++)
+    {
+        int n = st.Read(buf, 0, buf.Length);
+        Console.WriteLine($"[{n}] " + string.Join(" ", buf.Take(n).Select((b, k) => (k % 16 == 0 ? "\n  " + k.ToString("D2") + ": " : "") + b.ToString("X2"))));
+    }
+    return;
+}
 
 Console.OutputEncoding = Encoding.UTF8;
 Console.Title = "se7en DualSense — test console";

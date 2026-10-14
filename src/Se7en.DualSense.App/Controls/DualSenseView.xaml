@@ -3,13 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              IsHitTestVisible="False">
     <!--
-        DualSense photographique (Assets/Images/dualsense.png, 505 × 386 px) avec des calques animés
-        posés exactement sur chaque commande. Les coordonnées sont en pixels de la photo.
+        DualSense (rendu 3D Blender, Assets/Images/dualsense.png en 1515 × 1158, affiché dans un repère
+        505 × 386) avec des calques animés posés exactement sur chaque commande.
     -->
     <UserControl.Resources>
         <Style x:Key="Glyph" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI Symbol" />
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontSize" Value="15" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -21,7 +21,7 @@
     </UserControl.Resources>
 
     <Grid>
-    <!-- Affiché si la photo de la manette est absente (non versionnée, voir README) -->
+    <!-- Affiché si l'image de la manette est absente (non versionnée, voir README) -->
     <TextBlock x:Name="MissingPhoto" Visibility="Collapsed" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
                HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="13" Foreground="#6B7282"
                Text="Image de la manette absente. Placez dualsense.png, stick-left.png et stick-right.png dans Assets/Images (voir README)." />
@@ -50,33 +50,32 @@
                 </Canvas.RenderTransform>
 
                 <!-- Lueur des gâchettes L2 / R2 (derrière la manette) -->
-                <Ellipse x:Name="L2Glow" Canvas.Left="78" Canvas.Top="14" Width="74" Height="26" Opacity="0">
+                <Ellipse x:Name="L2Glow" Canvas.Left="70" Canvas.Top="26" Width="76" Height="26" Opacity="0">
                     <Ellipse.Effect><BlurEffect Radius="12" /></Ellipse.Effect>
                 </Ellipse>
-                <Ellipse x:Name="R2Glow" Canvas.Left="353" Canvas.Top="14" Width="74" Height="26" Opacity="0">
+                <Ellipse x:Name="R2Glow" Canvas.Left="359" Canvas.Top="26" Width="76" Height="26" Opacity="0">
                     <Ellipse.Effect><BlurEffect Radius="12" /></Ellipse.Effect>
                 </Ellipse>
 
-                <!-- Photo -->
-                <Image x:Name="Photo" Width="505" Height="386"
-                       RenderOptions.BitmapScalingMode="HighQuality" />
+                <!-- Rendu de la manette -->
+                <Image x:Name="Photo" Width="505" Height="386" RenderOptions.BitmapScalingMode="HighQuality" />
 
                 <!-- Barre lumineuse : recolorée avec la couleur réellement envoyée à la manette -->
-                <Path x:Name="LightbarGlowL" Data="M 162,45 C 166,75 171,100 180,118" StrokeThickness="9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.5">
+                <Path x:Name="LightbarGlowL" Data="M 155,58 C 158,85 162,110 170,130" StrokeThickness="9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.5">
                     <Path.Effect><BlurEffect Radius="9" /></Path.Effect>
                 </Path>
-                <Path x:Name="LightbarGlowR" Data="M 343,45 C 339,75 334,100 325,118" StrokeThickness="9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.5">
+                <Path x:Name="LightbarGlowR" Data="M 350,58 C 347,85 343,110 335,130" StrokeThickness="9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.5">
                     <Path.Effect><BlurEffect Radius="9" /></Path.Effect>
                 </Path>
-                <Path x:Name="LightbarL" Data="M 162,45 C 166,75 171,100 180,118" StrokeThickness="3.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                <Path x:Name="LightbarR" Data="M 343,45 C 339,75 334,100 325,118" StrokeThickness="3.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="LightbarL" Data="M 155,58 C 158,85 162,110 170,130" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="LightbarR" Data="M 350,58 C 347,85 343,110 335,130" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
 
                 <!-- Pavé tactile : teinte au clic + doigts -->
                 <Path x:Name="TouchTint" Opacity="0"
-                      Data="M 166,40 L 339,40 L 328,114 C 325,123 320,127 311,127 L 194,127 C 185,127 180,123 177,114 Z" />
+                      Data="M 159,52 L 346,52 L 338,118 C 335,135 328,146 315,146 L 190,146 C 177,146 170,135 167,118 Z" />
                 <Canvas>
                     <Canvas.Clip>
-                        <PathGeometry Figures="M 166,40 L 339,40 L 328,114 C 325,123 320,127 311,127 L 194,127 C 185,127 180,123 177,114 Z" />
+                        <PathGeometry Figures="M 159,52 L 346,52 L 338,118 C 335,135 328,146 315,146 L 190,146 C 177,146 170,135 167,118 Z" />
                     </Canvas.Clip>
                     <Ellipse x:Name="Finger0" Width="16" Height="16" Opacity="0">
                         <Ellipse.Effect><DropShadowEffect x:Name="Finger0Glow" ShadowDepth="0" BlurRadius="14" Opacity="0.9" /></Ellipse.Effect>
@@ -87,58 +86,58 @@
                 </Canvas>
 
                 <!-- L1 / R1 -->
-                <Path x:Name="L1Over" Opacity="0" Data="M 85,49 L 88,38 C 90,33 96,31 104,31 L 138,31 C 142,31 144,34 144,38 L 144,45 Z" />
-                <Path x:Name="R1Over" Opacity="0" Data="M 420,49 L 417,38 C 415,33 409,31 401,31 L 367,31 C 363,31 361,34 361,38 L 361,45 Z" />
+                <Path x:Name="L1Over" Opacity="0" Data="M 76,62 L 77,55 C 80,50 90,47 104,46 L 134,45 C 138,45 140,48 139,52 L 139,56 Z" />
+                <Path x:Name="R1Over" Opacity="0" Data="M 429,62 L 428,55 C 425,50 415,47 401,46 L 371,45 C 367,45 365,48 366,52 L 366,56 Z" />
 
                 <!-- Create / Options -->
-                <Rectangle x:Name="CreateOver" Canvas.Left="143" Canvas.Top="55" Width="12" Height="22" RadiusX="6" RadiusY="6" Opacity="0" />
-                <Rectangle x:Name="OptionsOver" Canvas.Left="350" Canvas.Top="54" Width="12" Height="22" RadiusX="6" RadiusY="6" Opacity="0" />
+                <Rectangle x:Name="CreateOver" Canvas.Left="136" Canvas.Top="64" Width="12" Height="25" RadiusX="6" RadiusY="6" Opacity="0" />
+                <Rectangle x:Name="OptionsOver" Canvas.Left="357" Canvas.Top="64" Width="12" Height="25" RadiusX="6" RadiusY="6" Opacity="0" />
 
                 <!-- Croix directionnelle -->
-                <Path x:Name="DpadUpOver" Opacity="0" Data="M 104,78 Q 101,78 101,82 L 101,101 L 114,111 L 127,101 L 127,82 Q 127,78 124,78 Z" />
-                <Path x:Name="DpadDownOver" Opacity="0" Data="M 104,151 Q 101,151 101,147 L 101,128 L 114,118 L 127,128 L 127,147 Q 127,151 124,151 Z" />
-                <Path x:Name="DpadLeftOver" Opacity="0" Data="M 81,101 Q 77,101 77,105 L 77,124 Q 77,128 81,128 L 100,128 L 110,114.5 L 100,101 Z" />
-                <Path x:Name="DpadRightOver" Opacity="0" Data="M 147,101 Q 151,101 151,105 L 151,124 Q 151,128 147,128 L 128,128 L 118,114.5 L 128,101 Z" />
+                <Path x:Name="DpadUpOver" Opacity="0" Data="M 95,90 Q 91,90 91,94 L 91,113 L 105,122 L 119,113 L 119,94 Q 119,90 115,90 Z" />
+                <Path x:Name="DpadDownOver" Opacity="0" Data="M 95,169 Q 91,169 91,165 L 91,145 L 105,136 L 119,145 L 119,165 Q 119,169 115,169 Z" />
+                <Path x:Name="DpadLeftOver" Opacity="0" Data="M 68,115 Q 64,115 64,119 L 64,139 Q 64,143 68,143 L 87,143 L 97,129 L 87,115 Z" />
+                <Path x:Name="DpadRightOver" Opacity="0" Data="M 142,115 Q 146,115 146,119 L 146,139 Q 146,143 142,143 L 123,143 L 113,129 L 123,115 Z" />
 
                 <!-- Boutons de façade -->
-                <Grid x:Name="TriangleOver" Canvas.Left="375.5" Canvas.Top="66.5" Width="31" Height="31" Opacity="0">
+                <Grid x:Name="TriangleOver" Canvas.Left="385" Canvas.Top="78" Width="32" Height="32" Opacity="0">
                     <Ellipse x:Name="TriangleFill" />
                     <TextBlock Style="{StaticResource Glyph}" Text="△" Margin="0,-2,0,0" />
                 </Grid>
-                <Grid x:Name="SquareOver" Canvas.Left="342.5" Canvas.Top="98.5" Width="31" Height="31" Opacity="0">
+                <Grid x:Name="SquareOver" Canvas.Left="350" Canvas.Top="114" Width="32" Height="32" Opacity="0">
                     <Ellipse x:Name="SquareFill" />
-                    <TextBlock Style="{StaticResource Glyph}" Text="□" FontSize="15" />
+                    <TextBlock Style="{StaticResource Glyph}" Text="□" FontSize="16" />
                 </Grid>
-                <Grid x:Name="CircleOver" Canvas.Left="408.5" Canvas.Top="98.5" Width="31" Height="31" Opacity="0">
+                <Grid x:Name="CircleOver" Canvas.Left="420" Canvas.Top="114" Width="32" Height="32" Opacity="0">
                     <Ellipse x:Name="CircleFill" />
                     <TextBlock Style="{StaticResource Glyph}" Text="○" />
                 </Grid>
-                <Grid x:Name="CrossOver" Canvas.Left="375.5" Canvas.Top="131.5" Width="31" Height="31" Opacity="0">
+                <Grid x:Name="CrossOver" Canvas.Left="385" Canvas.Top="149" Width="32" Height="32" Opacity="0">
                     <Ellipse x:Name="CrossFill" />
-                    <TextBlock Style="{StaticResource Glyph}" Text="✕" FontSize="13" />
+                    <TextBlock Style="{StaticResource Glyph}" Text="✕" FontSize="14" />
                 </Grid>
 
                 <!-- Sticks : le chapeau d'origine est masqué par un puits sombre, la copie se déplace -->
-                <Ellipse Canvas.Left="153.7" Canvas.Top="147.3" Width="56" Height="56" Fill="{StaticResource StickWell}" />
-                <Ellipse Canvas.Left="296.2" Canvas.Top="147.3" Width="56" Height="56" Fill="{StaticResource StickWell}" />
+                <Ellipse Canvas.Left="148" Canvas.Top="166" Width="54" Height="54" Fill="{StaticResource StickWell}" />
+                <Ellipse Canvas.Left="299" Canvas.Top="166" Width="54" Height="54" Fill="{StaticResource StickWell}" />
                 <Canvas>
                     <Canvas.RenderTransform><TranslateTransform x:Name="LeftStickShift" /></Canvas.RenderTransform>
-                    <Image x:Name="StickLeftImage" Canvas.Left="153" Canvas.Top="146" Width="58" Height="58" RenderOptions.BitmapScalingMode="HighQuality">
+                    <Image x:Name="StickLeftImage" Canvas.Left="147" Canvas.Top="165" Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
                         <Image.Effect><DropShadowEffect ShadowDepth="2" Direction="270" BlurRadius="6" Opacity="0.45" /></Image.Effect>
                     </Image>
-                    <Ellipse x:Name="LeftStickRing" Canvas.Left="155.2" Canvas.Top="148.8" Width="53" Height="53" StrokeThickness="2.2" />
+                    <Ellipse x:Name="LeftStickRing" Canvas.Left="149" Canvas.Top="167" Width="52" Height="52" StrokeThickness="2.2" />
                 </Canvas>
                 <Canvas>
                     <Canvas.RenderTransform><TranslateTransform x:Name="RightStickShift" /></Canvas.RenderTransform>
-                    <Image x:Name="StickRightImage" Canvas.Left="295" Canvas.Top="146" Width="58" Height="58" RenderOptions.BitmapScalingMode="HighQuality">
+                    <Image x:Name="StickRightImage" Canvas.Left="298" Canvas.Top="165" Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
                         <Image.Effect><DropShadowEffect ShadowDepth="2" Direction="270" BlurRadius="6" Opacity="0.45" /></Image.Effect>
                     </Image>
-                    <Ellipse x:Name="RightStickRing" Canvas.Left="297.7" Canvas.Top="148.8" Width="53" Height="53" StrokeThickness="2.2" />
+                    <Ellipse x:Name="RightStickRing" Canvas.Left="300" Canvas.Top="167" Width="52" Height="52" StrokeThickness="2.2" />
                 </Canvas>
 
                 <!-- PS / micro -->
-                <Ellipse x:Name="PsOver" Canvas.Left="241" Canvas.Top="160" Width="24" Height="24" Opacity="0" StrokeThickness="2" />
-                <Rectangle x:Name="MuteOver" Canvas.Left="242" Canvas.Top="196" Width="22" Height="6" RadiusX="3" RadiusY="3" Opacity="0" />
+                <Ellipse x:Name="PsOver" Canvas.Left="240" Canvas.Top="179" Width="26" Height="26" Opacity="0" StrokeThickness="2" />
+                <Rectangle x:Name="MuteOver" Canvas.Left="242" Canvas.Top="218" Width="22" Height="6" RadiusX="3" RadiusY="3" Opacity="0" />
             </Canvas>
         </Canvas>
     </Viewbox>

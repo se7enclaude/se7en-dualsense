@@ -1,11 +1,12 @@
-﻿"""Convertit les icônes Lucide (iconData.js) en géométries XAML WPF."""
+"""Convertit les icônes Lucide (iconData.js) en géométries XAML WPF."""
 import json, re, sys
 
 src, out = sys.argv[1], sys.argv[2]
 WANTED = ["house", "crosshair", "sliders-horizontal", "vibrate", "library-big", "settings", "usb",
           "bluetooth", "minus", "copy", "x", "moon", "sun", "gamepad-2", "zap", "triangle-alert",
           "layers", "activity", "power", "lightbulb", "info", "refresh-cw", "check", "circle-check",
-          "battery-full", "battery-medium", "battery-low", "battery-charging", "joystick", "wand-sparkles"]
+          "battery-full", "battery-medium", "battery-low", "battery-charging", "joystick", "wand-sparkles",
+          "arrow-right", "arrow-up-right", "box", "diamond", "menu", "triangle"]
 
 text = open(src, encoding="utf-8").read()
 data = json.loads(text[text.index("{"): text.rindex("}") + 1])

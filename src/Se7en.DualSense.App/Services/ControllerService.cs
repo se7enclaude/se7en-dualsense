@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 using Se7en.DualSense.Hid;
+using Se7en.DualSense.Output;
 
 namespace Se7en.DualSense.App.Services;
 
@@ -18,6 +19,25 @@ public sealed class ControllerService : IDisposable
     public ControllerService()
     {
         _connection.Log += msg => Application.Current?.Dispatcher.BeginInvoke(() => Log?.Invoke(msg));
+        HidHide = new HidHideService(AppSettings.Directory);
+        Output = new OutputManager(_connection, HidHide, AppSettings.Current.OutputMode);
+        Output.Log += msg => Application.Current?.Dispatcher.BeginInvoke(() => Log?.Invoke(msg));
+        Output.StatusChanged += status => Application.Current?.Dispatcher.BeginInvoke(() => OutputStatusChanged?.Invoke(status));
+    }
+
+    public HidHideService HidHide { get; }
+
+    /// <summary>Sortie vers les jeux (DS4 / Xbox 360 / native) et masquage HidHide.</summary>
+    public OutputManager Output { get; }
+
+    /// <summary>Appelé sur le thread UI quand le mode de sortie ou le masquage change.</summary>
+    public event Action<OutputStatus>? OutputStatusChanged;
+
+    public void SetOutputMode(OutputMode mode)
+    {
+        AppSettings.Current.OutputMode = mode;
+        AppSettings.Save();
+        Output.SetMode(mode);
     }
 
     /// <summary>Appelé sur le thread UI à chaque image où l'état a changé.</summary>
@@ -35,17 +55,25 @@ public sealed class ControllerService : IDisposable
     public void Start()
     {
         _connection.Start();
+        if (!IsDemo)
+            Output.Start();
         CompositionTarget.Rendering += OnRendering;
     }
 
-    /// <summary>Mode démo (variable d'environnement SE7EN_DEMO=1) : simule une manette pour prévisualiser l'interface.</summary>
-    private static readonly bool DemoMode = Environment.GetEnvironmentVariable("SE7EN_DEMO") == "1";
+    /// <summary>
+    /// Mode démo (option --demo) : simule une manette pour prévisualiser l'interface.
+    /// Volontairement explicite pour ne jamais masquer une vraie manette par erreur.
+    /// </summary>
+    public static bool IsDemo { get; set; }
+
+    /// <summary>Option --demo-all : toutes les touches simulées enfoncées en même temps.</summary>
+    public static bool DemoAllButtons { get; set; }
     private static readonly DualSenseDeviceInfo DemoDevice = new("demo", ConnectionType.Usb, false, null, 64, 48);
     private readonly System.Diagnostics.Stopwatch _demoClock = System.Diagnostics.Stopwatch.StartNew();
 
     private void OnRendering(object? sender, EventArgs e)
     {
-        if (DemoMode)
+        if (IsDemo)
         {
             RenderDemo();
             return;
@@ -83,7 +111,7 @@ public sealed class ControllerService : IDisposable
             DualSenseButtons.L1, DualSenseButtons.R1, DualSenseButtons.Create, DualSenseButtons.Options,
             DualSenseButtons.PS, DualSenseButtons.Mute, DualSenseButtons.Touchpad, DualSenseButtons.L3,
         ];
-        var all = Environment.GetEnvironmentVariable("SE7EN_DEMO_ALL") == "1";
+        var all = DemoAllButtons;
         var buttons = all ? cycle.Aggregate(DualSenseButtons.None, (a, b) => a | b) : cycle[(int)(t / 0.7) % cycle.Length];
         var state = new DualSenseState
         {
@@ -108,6 +136,7 @@ public sealed class ControllerService : IDisposable
     public void Dispose()
     {
         CompositionTarget.Rendering -= OnRendering;
+        Output.Dispose();
         _connection.Dispose();
     }
 }

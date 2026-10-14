@@ -67,25 +67,14 @@ public sealed class StickVisualizer : LiveVisual
         var c = new Point(ActualWidth / 2, ActualHeight / 2);
 
         var inset = Res("Surface.Inset");
-        var border = new Pen(Res("Border.Default"), 1);
+        var dashed = new Pen(Res("Border.Dashed"), 1) { DashStyle = new DashStyle(new double[] { 3, 3 }, 0) };
         var subtle = new Pen(Res("Border.Subtle"), 1);
         var accent = ResColor("Color.Accent");
 
-        // Puits (avec ombre intérieure simulée par un anneau dégradé)
-        dc.DrawEllipse(inset, null, c, r, r);
-        var innerShadow = new RadialGradientBrush
-        {
-            GradientOrigin = new Point(0.42, 0.38),
-            GradientStops =
-            {
-                new GradientStop(Color.FromArgb(0, 0, 0, 0), 0.82),
-                new GradientStop(Color.FromArgb(40, 0, 0, 0), 1),
-            },
-        };
-        dc.DrawEllipse(innerShadow, null, c, r, r);
-
-        dc.DrawLine(border, new Point(c.X, c.Y - r + 12), new Point(c.X, c.Y + r - 12));
-        dc.DrawLine(border, new Point(c.X - r + 12, c.Y), new Point(c.X + r - 12, c.Y));
+        // Puits plat + filet intérieur (style éditorial), croix en pointillés
+        dc.DrawEllipse(inset, new Pen(Res("Border.Hairline"), 1), c, r - 0.5, r - 0.5);
+        dc.DrawLine(dashed, new Point(c.X, c.Y - r + 12), new Point(c.X, c.Y + r - 12));
+        dc.DrawLine(dashed, new Point(c.X - r + 12, c.Y), new Point(c.X + r - 12, c.Y));
         dc.DrawEllipse(null, subtle, c, r * 0.5, r * 0.5);
 
         if (Deadzone > 0)
@@ -157,7 +146,7 @@ public sealed class TouchpadVisual : LiveVisual
         double w = ActualWidth, h = ActualHeight;
         if (w <= 0 || h <= 0) return;
         var rect = new Rect(0, 0, w, h);
-        dc.DrawRoundedRectangle(Res(_clicked ? "Accent.Soft" : "Surface.Inset"), _clicked ? new Pen(Res("Accent"), 1.5) : null, rect, 14, 14);
+        dc.DrawRoundedRectangle(Res(_clicked ? "Accent.Soft" : "Surface.Inset"), _clicked ? new Pen(Res("Accent"), 1.5) : null, rect, 8, 8);
 
         var accent = ResColor("Color.Accent");
         DrawFinger(dc, _t0, w, h, accent, "1");

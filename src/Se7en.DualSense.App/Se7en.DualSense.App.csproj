@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Se7en.DualSense.Hid\Se7en.DualSense.Hid.csproj" />
+    <ProjectReference Include="..\Se7en.DualSense.Output\Se7en.DualSense.Output.csproj" />
   </ItemGroup>
 
 </Project>

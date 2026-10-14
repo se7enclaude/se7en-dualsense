@@ -1,6 +1,7 @@
 Anton: Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont.git)
 Hanken Grotesk: Copyright 2021 The Hanken Grotesk Project Authors (https://github.com/marcologous/hanken-grotesk)
 Geist Mono: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)
+Syne: Copyright 2019 The Syne Project Authors (https://gitlab.com/bonjour-monde/fonderie/syne-typeface)
 
 The fonts in this directory are static instances converted from the original
 variable WOFF2 files. They remain licensed under the SIL Open Font License 1.1.

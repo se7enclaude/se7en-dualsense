@@ -7,16 +7,20 @@
     <FontFamily x:Key="Font.Sans">pack://application:,,,/Assets/Fonts/#Hanken Grotesk</FontFamily>
     <FontFamily x:Key="Font.Mono">pack://application:,,,/Assets/Fonts/#Geist Mono</FontFamily>
     <FontFamily x:Key="Font.Glyph">Segoe UI Symbol</FontFamily>
+    <!-- Logo « se7en » : Syne ExtraBold figée en statique -->
+    <FontFamily x:Key="Font.Brand">pack://application:,,,/Assets/Fonts/#Syne Brand</FontFamily>
 
+    <!-- Lavande : réservée aux grands visuels produit (écran d'ouverture) -->
     <LinearGradientBrush x:Key="Gradient.Lavender" StartPoint="0,0" EndPoint="1,0.6">
         <GradientStop Color="#B687E5" Offset="0" />
         <GradientStop Color="#8F9BEA" Offset="1" />
     </LinearGradientBrush>
 
+    <!-- Ligne lumineuse (accent optionnel, désormais violette) -->
     <LinearGradientBrush x:Key="LightBar" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#004B57F5" Offset="0" />
-        <GradientStop Color="#FF4B57F5" Offset="0.45" />
-        <GradientStop Color="#004B57F5" Offset="1" />
+        <GradientStop Color="#007B57EA" Offset="0" />
+        <GradientStop Color="#FF7B57EA" Offset="0.45" />
+        <GradientStop Color="#007B57EA" Offset="1" />
     </LinearGradientBrush>
 
     <Style x:Key="Text.Base" TargetType="TextBlock">
@@ -25,10 +29,17 @@
         <Setter Property="FontSize" Value="15" />
         <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
     </Style>
+    <!-- Titre de page : Anton majuscule (type-title du design system) -->
+    <Style x:Key="Text.Title" TargetType="TextBlock" BasedOn="{StaticResource Text.Base}">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Display}" />
+        <Setter Property="FontSize" Value="68" />
+        <Setter Property="LineHeight" Value="62" />
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+    </Style>
     <Style x:Key="Text.H1" TargetType="TextBlock" BasedOn="{StaticResource Text.Base}">
-        <Setter Property="FontSize" Value="40" />
+        <Setter Property="FontSize" Value="34" />
         <Setter Property="FontWeight" Value="Medium" />
-        <Setter Property="LineHeight" Value="42" />
+        <Setter Property="LineHeight" Value="36" />
     </Style>
     <Style x:Key="Text.H3" TargetType="TextBlock" BasedOn="{StaticResource Text.Base}">
         <Setter Property="FontSize" Value="17" />
@@ -58,6 +69,31 @@
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
     </Style>
+    <!-- Gros chiffre de statistique (Anton) -->
+    <Style x:Key="Text.Stat" TargetType="TextBlock" BasedOn="{StaticResource Text.Base}">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Display}" />
+        <Setter Property="FontSize" Value="40" />
+    </Style>
+
+    <!-- ───────────── Filets pointillés (motif signature) ───────────── -->
+    <Style x:Key="Rule.H" TargetType="Line">
+        <Setter Property="X2" Value="1" />
+        <Setter Property="Stretch" Value="Fill" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeDashArray" Value="3 3" />
+        <Setter Property="Stroke" Value="{DynamicResource Border.Dashed}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style x:Key="Rule.V" TargetType="Line">
+        <Setter Property="Y2" Value="1" />
+        <Setter Property="Stretch" Value="Fill" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeDashArray" Value="3 3" />
+        <Setter Property="Stroke" Value="{DynamicResource Border.Dashed}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
 
     <!-- ───────────── Icône ───────────── -->
     <Style TargetType="c:AxisIcon">
@@ -79,51 +115,38 @@
         </Setter>
     </Style>
 
-    <!-- ───────────── Carte neumorphique (sans bordure) ───────────── -->
+    <!-- ───────────── Carte plate : fond + filet intérieur 1px, coins serrés ───────────── -->
     <Style x:Key="Card" TargetType="ContentControl">
         <Setter Property="Padding" Value="24" />
-        <Setter Property="Tag" Value="20" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContentControl">
-                    <Grid>
-                        <Border CornerRadius="20" Background="{DynamicResource Surface.Card}" Effect="{DynamicResource Shadow.Highlight}" />
-                        <Border CornerRadius="20" Background="{DynamicResource Surface.Card}" Effect="{DynamicResource Shadow.Low}" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}" />
-                    </Grid>
+                    <Border CornerRadius="12" Background="{DynamicResource Surface.Card}" BorderBrush="{DynamicResource Border.Hairline}" BorderThickness="1"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
-
     <Style x:Key="Card.Small" TargetType="ContentControl" BasedOn="{StaticResource Card}">
         <Setter Property="Padding" Value="20" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ContentControl">
-                    <Grid>
-                        <Border CornerRadius="20" Background="{DynamicResource Surface.Card}" Effect="{DynamicResource Shadow.HighlightSm}" />
-                        <Border CornerRadius="20" Background="{DynamicResource Surface.Card}" Effect="{DynamicResource Shadow.LowSm}" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}" />
-                    </Grid>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
     </Style>
 
     <!-- ───────────── Badge ───────────── -->
     <Style TargetType="c:Badge">
         <Setter Property="Background" Value="{DynamicResource Neutral.Soft}" />
         <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Text.Tertiary}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="c:Badge">
-                    <Border CornerRadius="12" Background="{TemplateBinding Background}" Padding="10,0" Height="24">
+                    <Border CornerRadius="11" Background="{TemplateBinding Background}" Padding="9,0" Height="22">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Ellipse x:Name="Dot" Width="6" Height="6" Fill="{TemplateBinding Foreground}" Margin="0,0,7,0" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <Ellipse x:Name="Dot" Width="6" Height="6" Fill="{TemplateBinding BorderBrush}" Margin="0,0,6,0" VerticalAlignment="Center" Visibility="Collapsed" />
                             <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}"
-                                       FontFamily="{StaticResource Font.Sans}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                       FontFamily="{StaticResource Font.Sans}" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -138,27 +161,114 @@
             <Trigger Property="Tone" Value="Accent">
                 <Setter Property="Background" Value="{DynamicResource Accent.Soft}" />
                 <Setter Property="Foreground" Value="{DynamicResource Text.Accent}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
             </Trigger>
             <Trigger Property="Tone" Value="Success">
                 <Setter Property="Background" Value="{DynamicResource Success.Soft}" />
-                <Setter Property="Foreground" Value="{DynamicResource Success}" />
+                <Setter Property="Foreground" Value="{DynamicResource Success.Text}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Success}" />
             </Trigger>
             <Trigger Property="Tone" Value="Warning">
                 <Setter Property="Background" Value="{DynamicResource Warning.Soft}" />
-                <Setter Property="Foreground" Value="{DynamicResource Warning}" />
+                <Setter Property="Foreground" Value="{DynamicResource Warning.Text}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Warning}" />
             </Trigger>
             <Trigger Property="Tone" Value="Danger">
                 <Setter Property="Background" Value="{DynamicResource Danger.Soft}" />
-                <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+                <Setter Property="Foreground" Value="{DynamicResource Danger.Text}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+            </Trigger>
+            <Trigger Property="Tone" Value="Inverse">
+                <Setter Property="Background" Value="{DynamicResource Surface.Inverse}" />
+                <Setter Property="Foreground" Value="{DynamicResource Text.Inverse}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Text.Inverse}" />
+            </Trigger>
+            <Trigger Property="Tone" Value="Highlight">
+                <Setter Property="Background" Value="{DynamicResource Highlight}" />
+                <Setter Property="Foreground" Value="{DynamicResource OnHighlight}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource OnHighlight}" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- ───────────── Tampon : disque violet, chiffre Anton italique citron, anneau encre ───────────── -->
+    <Style TargetType="c:StampBadge">
+        <Setter Property="Width" Value="112" />
+        <Setter Property="Height" Value="112" />
+        <Setter Property="Background" Value="{DynamicResource Accent}" />
+        <Setter Property="Foreground" Value="{DynamicResource Highlight}" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="c:StampBadge">
+                    <Grid>
+                        <Ellipse Fill="{DynamicResource Ink}" />
+                        <Ellipse Fill="{TemplateBinding Background}" Margin="4" />
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="{TemplateBinding Value}" Foreground="{TemplateBinding Foreground}" FontFamily="{StaticResource Font.Display}"
+                                       FontSize="{TemplateBinding ValueFontSize}" HorizontalAlignment="Center">
+                                <TextBlock.RenderTransform><SkewTransform AngleX="-10" /></TextBlock.RenderTransform>
+                            </TextBlock>
+                            <TextBlock Text="{TemplateBinding Caption}" Foreground="{TemplateBinding Foreground}" FontFamily="{StaticResource Font.Sans}"
+                                       FontWeight="SemiBold" FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ───────────── Glyphe de bouton manette : s'allume en violet à l'appui ───────────── -->
+    <Style TargetType="c:ButtonGlyph">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="MinWidth" Value="38" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+        <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="c:ButtonGlyph">
+                    <Border x:Name="Bd" CornerRadius="19" Padding="12,0" Background="{DynamicResource Surface.Raised}"
+                            BorderBrush="{DynamicResource Border.Default}" BorderThickness="1">
+                        <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}"
+                                   FontWeight="{TemplateBinding FontWeight}" FontSize="{TemplateBinding FontSize}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Shape" Value="Circle">
+                            <Setter TargetName="Bd" Property="Padding" Value="0" />
+                            <Setter Property="Width" Value="38" />
+                            <Setter Property="FontFamily" Value="{StaticResource Font.Glyph}" />
+                            <Setter Property="FontWeight" Value="Normal" />
+                            <Setter Property="FontSize" Value="17" />
+                        </Trigger>
+                        <Trigger Property="Shape" Value="Rounded">
+                            <Setter TargetName="Bd" Property="CornerRadius" Value="8" />
+                            <Setter TargetName="Bd" Property="Padding" Value="0" />
+                            <Setter Property="Width" Value="38" />
+                            <Setter Property="FontFamily" Value="{StaticResource Font.Glyph}" />
+                            <Setter Property="FontWeight" Value="Normal" />
+                            <Setter Property="FontSize" Value="15" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Bd" Property="Effect" Value="{DynamicResource Shadow.Glow}" />
+                            <Setter Property="Foreground" Value="{DynamicResource OnAccent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ───────────── Boutons ───────────── -->
     <Style x:Key="Button.Base" TargetType="Button">
         <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Height" Value="38" />
         <Setter Property="Padding" Value="18,0" />
         <Setter Property="Cursor" Value="Hand" />
@@ -171,7 +281,40 @@
         </Setter>
     </Style>
 
+    <!-- Primaire : encre → violet au survol -->
     <Style x:Key="Button.Primary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+        <Setter Property="Background" Value="{DynamicResource Ink}" />
+        <Setter Property="Foreground" Value="{DynamicResource OnInk}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="19" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Accent}" />
+                            <Setter Property="Foreground" Value="{DynamicResource OnAccent}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Accent.Press}" />
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.97" ScaleY="0.97" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Accent : violet → violet foncé + halo -->
+    <Style x:Key="Button.Accent" TargetType="Button" BasedOn="{StaticResource Button.Base}">
         <Setter Property="Background" Value="{DynamicResource Accent}" />
         <Setter Property="Foreground" Value="{DynamicResource OnAccent}" />
         <Setter Property="Template">
@@ -193,15 +336,13 @@
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Opacity" Value="0.45" />
-                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
+    <!-- Secondaire : contour encre 1.5px → s'inverse au survol -->
     <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
@@ -214,8 +355,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface.Inverse}" />
-                            <Setter Property="Foreground" Value="{DynamicResource Text.Inverse}" />
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Ink}" />
+                            <Setter Property="Foreground" Value="{DynamicResource OnInk}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter Property="RenderTransform">
@@ -230,7 +371,32 @@
         </Setter>
     </Style>
 
-    <!-- Bouton icône fantôme (barre de titre, actions de carte) -->
+    <!-- Bouton-icône rond à contour (ex. « Profils ») -->
+    <Style x:Key="IconButton.Outline" TargetType="Button">
+        <Setter Property="Width" Value="46" />
+        <Setter Property="Height" Value="46" />
+        <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="23" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Border.Strong}" BorderThickness="1">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Ink}" />
+                            <Setter Property="Foreground" Value="{DynamicResource OnInk}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Bouton-icône fantôme (barre de titre, actions de carte) -->
     <Style x:Key="IconButton.Ghost" TargetType="Button">
         <Setter Property="Width" Value="40" />
         <Setter Property="Height" Value="28" />
@@ -241,7 +407,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" CornerRadius="8" Background="{TemplateBinding Background}">
+                    <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
@@ -259,7 +425,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" CornerRadius="8" Background="{TemplateBinding Background}">
+                    <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
@@ -275,36 +441,86 @@
 
     <!-- ───────────── Élément de navigation (sidebar) ───────────── -->
     <Style x:Key="NavItem" TargetType="RadioButton">
-        <Setter Property="Height" Value="42" />
+        <Setter Property="Height" Value="40" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Grid>
-                        <Border x:Name="ShadowHi" CornerRadius="14" Background="{DynamicResource Surface.Card}" Effect="{DynamicResource Shadow.HighlightSm}" Opacity="0" />
-                        <Border x:Name="ShadowLo" CornerRadius="14" Background="{DynamicResource Surface.Card}" Effect="{DynamicResource Shadow.LowSm}" Opacity="0" />
-                        <Border x:Name="Bd" CornerRadius="14" Background="Transparent" Padding="14,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <c:AxisIcon x:Name="Ico" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                                            Foreground="{TemplateBinding Foreground}" Width="18" Height="18" />
-                                <ContentPresenter Margin="12,0,0,0" VerticalAlignment="Center" TextElement.FontFamily="{StaticResource Font.Sans}"
-                                                  TextElement.FontSize="14" TextElement.FontWeight="Medium" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
+                    <Border x:Name="Bd" CornerRadius="8" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Padding="13,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <c:AxisIcon x:Name="Ico" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                        Foreground="{TemplateBinding Foreground}" Width="18" Height="18" />
+                            <ContentPresenter Margin="12,0,0,0" VerticalAlignment="Center" TextElement.FontFamily="{StaticResource Font.Sans}"
+                                              TextElement.FontSize="14" TextElement.FontWeight="Medium" />
+                        </StackPanel>
+                    </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Veil}" />
                             <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="Transparent" />
-                            <Setter TargetName="ShadowHi" Property="Opacity" Value="1" />
-                            <Setter TargetName="ShadowLo" Property="Opacity" Value="1" />
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface.Raised}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Border.Hairline}" />
                             <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
                             <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Option de contrôle segmenté (pilule ; l'option choisie passe en encre) -->
+    <Style x:Key="Segment" TargetType="RadioButton">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bd" CornerRadius="17" Background="Transparent" Padding="16,0">
+                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" TextElement.FontFamily="{StaticResource Font.Sans}"
+                                          TextElement.FontSize="13" TextElement.FontWeight="Medium" TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Veil}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Ink}" />
+                            <Setter Property="Foreground" Value="{DynamicResource OnInk}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Libellé vertical du rail droit -->
+    <Style x:Key="VerticalLabel" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text.Tertiary}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="Transparent" Padding="6,0">
+                        <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" FontFamily="{StaticResource Font.Sans}"
+                                   FontWeight="Medium" FontSize="12">
+                            <TextBlock.LayoutTransform><RotateTransform Angle="-90" /></TextBlock.LayoutTransform>
+                        </TextBlock>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

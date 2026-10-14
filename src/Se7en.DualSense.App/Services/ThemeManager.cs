@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows;
+using Se7en.DualSense.Output;
 
 namespace Se7en.DualSense.App.Services;
 
@@ -32,43 +34,49 @@ public static class ThemeManager
             merged.Add(palette);
 
         Current = theme;
-        UiSettings.Save(new UiSettings.Data(theme));
+        AppSettings.Current.Theme = theme;
+        AppSettings.Save();
         ThemeChanged?.Invoke();
     }
 
     public static void Toggle() => Apply(Current == AppTheme.Light ? AppTheme.Dark : AppTheme.Light);
 }
 
-/// <summary>Préférences d'interface persistées dans %AppData%\se7en DualSense\ui.json.</summary>
-public static class UiSettings
+/// <summary>Préférences persistées dans %AppData%\se7en DualSense\settings.json.</summary>
+public sealed class AppSettings
 {
-    public sealed record Data(AppTheme Theme);
+    public AppTheme Theme { get; set; } = AppTheme.Light;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public OutputMode OutputMode { get; set; } = OutputMode.DualShock4;
 
     public static string Directory { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "se7en DualSense");
 
-    private static string FilePath => Path.Combine(Directory, "ui.json");
+    private static string FilePath => Path.Combine(Directory, "settings.json");
 
-    public static Data Load()
+    public static AppSettings Current { get; private set; } = Load();
+
+    private static AppSettings Load()
     {
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<Data>(File.ReadAllText(FilePath)) ?? new Data(AppTheme.Light);
+                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
         }
         catch
         {
             // Fichier illisible : on repart des valeurs par défaut
         }
-        return new Data(AppTheme.Light);
+        return new AppSettings();
     }
 
-    public static void Save(Data data)
+    public static void Save()
     {
         try
         {
             System.IO.Directory.CreateDirectory(Directory);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(data));
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch
         {

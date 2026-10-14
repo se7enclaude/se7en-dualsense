@@ -1,4 +1,4 @@
-﻿"""Détoure la photo de la DualSense (fond blanc) en PNG transparent.
+"""Détoure la photo de la DualSense (fond blanc) en PNG transparent.
 
 1. Silhouette = contours (gradient) + zones sombres, fermés puis remplis -> masque opaque.
 2. Hors silhouette : noir semi-transparent (alpha = 1 - luminance) pour garder l'ombre
@@ -10,6 +10,8 @@ from PIL import Image, ImageFilter
 from scipy import ndimage
 
 src, out, preview, maskdbg = sys.argv[1:5]
+# Cadre de recadrage imposé (x0,y0,x1,y1) : garde les coordonnées des calques animés stables
+fixed_box = tuple(int(v) for v in sys.argv[5].split(",")) if len(sys.argv) > 5 else None
 pil = Image.open(src).convert("RGB")
 im = np.asarray(pil).astype(np.float32)
 lum = im.mean(axis=2)
@@ -46,6 +48,14 @@ ys_all = np.where(mask)[0]
 low = np.zeros_like(mask)
 low[ys_all.max() - 30:, :] = True
 mask &= ~(low & (lum > 200) & (sat < 12) & (grad < 30))
+# Chaque poignée se termine juste sous sa bande noire : tout ce qui est plus bas n'est que l'ombre au sol
+ys_m, xs_m = np.where(mask)
+cx = (xs_m.min() + xs_m.max()) // 2
+dark = mask & (lum < 70)
+for x0, x1 in ((0, cx), (cx, mask.shape[1])):
+    rows = np.where(dark[:, x0:x1].any(axis=1))[0]
+    if rows.size:
+        mask[rows.max() + 3:, x0:x1] = False
 mask = ndimage.binary_opening(mask, structure=np.ones((3, 3)), iterations=1)
 labels, n = ndimage.label(mask)
 sizes = ndimage.sum(mask, labels, range(1, n + 1))
@@ -53,7 +63,7 @@ mask = labels == (np.argmax(sizes) + 1)
 Image.fromarray((mask * 255).astype(np.uint8)).save(maskdbg)
 
 # Masque adouci (anti-crénelage) puis légère érosion pour ne pas garder de liseré blanc
-m = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.9))
+m = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.4))
 ma = np.asarray(m).astype(np.float32) / 255.0
 
 shadow_a = np.clip((bgval - lum) / bgval, 0, 1) * 1.15
@@ -68,6 +78,8 @@ img = Image.fromarray(rgba, "RGBA")
 ys, xs = np.where(mask)
 pad = 30
 box = (max(0, xs.min() - pad), max(0, ys.min() - pad), min(img.width, xs.max() + pad), min(img.height, ys.max() + pad + 20))
+if fixed_box:
+    box = fixed_box
 img = img.crop(box)
 img.save(out)
 print("box", box, "size", img.size, "bg", bgval)

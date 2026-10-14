@@ -31,4 +31,10 @@
     <Geometry x:Key="Icon.BatteryCharging">M 15 7 h 1 a 2 2 0 0 1 2 2 v 6 a 2 2 0 0 1 -2 2 h -2 M 6 7 H 4 a 2 2 0 0 0 -2 2 v 6 a 2 2 0 0 0 2 2 h 1 M 11 7 l -3 5 h 4 l -3 5 M 22 11 L 22 13</Geometry>
     <Geometry x:Key="Icon.Joystick">M 21 17 a 2 2 0 0 0 -2 -2 H 5 a 2 2 0 0 0 -2 2 v 2 a 2 2 0 0 0 2 2 h 14 a 2 2 0 0 0 2 -2 v -2 Z M 6 15 v -2 M 12 15 V 9 M 9 6 A 3 3 0 1 0 15 6 A 3 3 0 1 0 9 6 Z</Geometry>
     <Geometry x:Key="Icon.WandSparkles">M 21.64 3.64 l -1.28 -1.28 a 1.21 1.21 0 0 0 -1.72 0 L 2.36 18.64 a 1.21 1.21 0 0 0 0 1.72 l 1.28 1.28 a 1.2 1.2 0 0 0 1.72 0 L 21.64 5.36 a 1.2 1.2 0 0 0 0 -1.72 M 14 7 l 3 3 M 5 6 v 4 M 19 14 v 4 M 10 2 v 2 M 7 8 H 3 M 21 16 h -4 M 11 3 H 9</Geometry>
+    <Geometry x:Key="Icon.ArrowRight">M 5 12 h 14 M 12 5 l 7 7 l -7 7</Geometry>
+    <Geometry x:Key="Icon.ArrowUpRight">M 7 7 h 10 v 10 M 7 17 L 17 7</Geometry>
+    <Geometry x:Key="Icon.Box">M 21 8 a 2 2 0 0 0 -1 -1.73 l -7 -4 a 2 2 0 0 0 -2 0 l -7 4 A 2 2 0 0 0 3 8 v 8 a 2 2 0 0 0 1 1.73 l 7 4 a 2 2 0 0 0 2 0 l 7 -4 A 2 2 0 0 0 21 16 Z M 3.3 7 l 8.7 5 l 8.7 -5 M 12 22 V 12</Geometry>
+    <Geometry x:Key="Icon.Diamond">M 2.7 10.3 a 2.41 2.41 0 0 0 0 3.41 l 7.59 7.59 a 2.41 2.41 0 0 0 3.41 0 l 7.59 -7.59 a 2.41 2.41 0 0 0 0 -3.41 l -7.59 -7.59 a 2.41 2.41 0 0 0 -3.41 0 Z</Geometry>
+    <Geometry x:Key="Icon.Menu">M 4 12 L 20 12 M 4 6 L 20 6 M 4 18 L 20 18</Geometry>
+    <Geometry x:Key="Icon.Triangle">M 13.73 4 a 2 2 0 0 0 -3.46 0 l -8 14 A 2 2 0 0 0 4 21 h 16 a 2 2 0 0 0 1.73 -3 Z</Geometry>
 </ResourceDictionary>
