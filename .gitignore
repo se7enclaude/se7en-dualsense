@@ -1,0 +1,10 @@
+bin/
+obj/
+publish/
+.vs/
+*.user
+TestResults/
+
+# Photo de la manette : image produit protégée, non versionnée (voir README)
+src/Se7en.DualSense.App/Assets/Images/*.png
+__pycache__/
