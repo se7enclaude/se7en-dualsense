@@ -26,6 +26,7 @@ public partial class WelcomeView : UserControl
 
     private readonly Stopwatch _clock = new();
     private readonly List<TextBlock> _word1 = new(), _word2 = new();
+    private readonly List<FrameworkElement> _symbols = new();
     private readonly Controller3DView? _view3D;
     private double _timeOffset;
     private double _exitStart = -1;
@@ -84,6 +85,30 @@ public partial class WelcomeView : UserControl
             IntroWord2.Children.Add(tb);
             _word2.Add(tb);
         }
+
+        // Les quatre symboles de la manette (triangle, rond, croix, carré) s'allument un à un sous la ligne lumineuse
+        var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 26, 0, 0) };
+        string[] shapes =
+        [
+            "M14,2 L26,24 L2,24 Z",                         // triangle
+            "M14,2 A12,12 0 1 1 13.99,2 Z",                  // rond
+            "M4,4 L24,24 M24,4 L4,24",                       // croix
+            "M4,4 L24,4 L24,24 L4,24 Z",                     // carré
+        ];
+        foreach (var d in shapes)
+        {
+            var path = new Path
+            {
+                Data = Geometry.Parse(d), StrokeThickness = 2.6, Stretch = Stretch.None, Width = 28, Height = 28,
+                StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+                Margin = new Thickness(14, 0, 14, 0), Opacity = 0, RenderTransformOrigin = new Point(.5, .5),
+                RenderTransform = new TransformGroup { Children = { new ScaleTransform(), new RotateTransform() } },
+            };
+            path.SetResourceReference(Shape.StrokeProperty, "Highlight");
+            row.Children.Add(path);
+            _symbols.Add(path);
+        }
+        ((Panel)IntroLine.Parent).Children.Add(row);
     }
 
     private void Start()
@@ -196,6 +221,14 @@ public partial class WelcomeView : UserControl
             _word2[i].Margin = new Thickness(Lerp(14, 3, p), 0, Lerp(14, 3, p), 0);
         }
         IntroLine.Width = 440 * EaseOutQuint(Seg(t, 1.0, 1.7));
+        for (int i = 0; i < _symbols.Count; i++)
+        {
+            double p = EaseOutCubic(Seg(t, 1.05 + i * 0.12, 1.5 + i * 0.12));
+            var g = (TransformGroup)_symbols[i].RenderTransform;
+            _symbols[i].Opacity = p;
+            ((ScaleTransform)g.Children[0]).ScaleX = ((ScaleTransform)g.Children[0]).ScaleY = Lerp(0.2, 1, p);
+            ((RotateTransform)g.Children[1]).Angle = Lerp(-120, 0, p);
+        }
 
         double introOut = EaseInCubic(Seg(t, 1.9, 2.5));
         Intro.Opacity = 1 - introOut;
