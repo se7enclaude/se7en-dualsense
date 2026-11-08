@@ -11,6 +11,9 @@ public partial class App : Application
 {
     public static ControllerService Controller { get; private set; } = null!;
 
+    /// <summary>Vérification des mises à jour de ViGEmBus et HidHide (au plus toutes les 12 h).</summary>
+    public static DriverUpdateChecker DriverUpdates { get; } = new(AppSettings.Directory);
+
     /// <summary>Fenêtre principale (navigation, notifications, fenêtres modales).</summary>
     public static Pages.IShell? Shell { get; set; }
 

@@ -132,7 +132,31 @@ public partial class MainWindow : Window, IShell
                 var update = await UpdateService.CheckInBackgroundAsync();
                 if (update != null && ModalHost.Visibility != Visibility.Visible)
                     UpdateDialog.Show(this, update);
+                // Pilotes : vérification en arrière-plan au plus toutes les 12 h (le minuteur ne fait que tester l'échéance)
+                await CheckDriverUpdatesAsync();
+                var driverTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(1) };
+                driverTimer.Tick += async (_, _) => await CheckDriverUpdatesAsync();
+                driverTimer.Start();
             };
+    }
+
+    private async Task CheckDriverUpdatesAsync()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try { await App.DriverUpdates.CheckAsync(force: false, cts.Token); }
+        catch { /* hors ligne : le dernier résultat est gardé */ }
+        NotifyDriverUpdates();
+    }
+
+    /// <summary>Signale une nouvelle version de pilote, une seule fois par version.</summary>
+    public void NotifyDriverUpdates()
+    {
+        var news = App.DriverUpdates.TakeNewNotifications(DriverStatus.Detect());
+        if (news.Count == 0) return;
+        string list = string.Join(" · ", news.Select(n => $"{n.Kind.DisplayName()} {DriverVersion.Display(n.InstalledVersion)} → {DriverVersion.Display(n.Latest?.Tag)}"));
+        Toast(news.Count > 1 ? "Mises à jour des pilotes disponibles" : "Mise à jour de pilote disponible", list + ". Mets à jour depuis Réglages › Pilotes.");
+        if (!IsVisible || WindowState == WindowState.Minimized)
+            _tray?.ShowBalloon("Mise à jour de pilote disponible", list, false);
     }
 
     /// <summary>Plusieurs manettes : une pastille par manette pour choisir celle affichée.</summary>

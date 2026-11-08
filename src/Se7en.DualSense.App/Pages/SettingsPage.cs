@@ -16,6 +16,8 @@ public sealed class SettingsPage : UserControl
 
     private readonly IShell _shell;
     private readonly StackPanel _root = new();
+    private StackPanel _drivers = new();
+    private bool _driverBusy;
 
     /// <summary>Déclenché quand un réglage d'interface change (overlay, navigation…).</summary>
     public event Action? InterfaceSettingsChanged;
@@ -25,6 +27,7 @@ public sealed class SettingsPage : UserControl
         _shell = shell;
         Content = _root;
         Build();
+        App.DriverUpdates.Checked += () => Dispatcher.BeginInvoke(RefreshDrivers);
     }
 
     private static AppSettings S => AppSettings.Current;
@@ -200,33 +203,9 @@ public sealed class SettingsPage : UserControl
             });
 
         // ── Pilotes ──
-        var drivers = DriverStatus.Detect();
-        Section("PILOTES",
-            new SettingRow
-            {
-                Label = "ViGEmBus",
-                Description = "Crée les manettes virtuelles DualShock 4 et Xbox 360.",
-                Control = Status(drivers.ViGEmBusInstalled),
-            },
-            new SettingRow
-            {
-                Label = "HidHide",
-                Description = "Masque la vraie manette aux jeux pour éviter la double entrée.",
-                Control = Status(drivers.HidHideInstalled),
-            },
-            new SettingRow
-            {
-                Label = "Droits administrateur",
-                Description = "Nécessaires au masquage HidHide.",
-                Control = Status(OutputManager.IsElevated, "Actifs", "Absents"),
-            },
-            new SettingRow
-            {
-                Label = "Réinstaller les pilotes",
-                Description = "Télécharge la dernière version officielle (Nefarius) et relance l'installation.",
-                Control = Ui.Button("Réinstaller", "Button.Secondary", async (_, _) => await ReinstallAsync()),
-                Last = true,
-            });
+        _drivers = new StackPanel();
+        _root.Children.Add(Ui.Card(_drivers, new Thickness(0, 0, 0, 16), 20));
+        RefreshDrivers();
 
         // ── Secours ──
         Section("SECOURS",
@@ -455,19 +434,149 @@ public sealed class SettingsPage : UserControl
     private static Badge Status(bool ok, string yes = "Installé", string no = "Absent") =>
         new() { ShowDot = true, Text = ok ? yes : no, Tone = ok ? BadgeTone.Success : BadgeTone.Warning };
 
+    // ───────────── Pilotes ─────────────
+
+    /// <summary>Reconstruit seulement la carte PILOTES (après une vérification ou une installation).</summary>
+    private void RefreshDrivers()
+    {
+        var status = DriverStatus.Detect();
+        var checker = App.DriverUpdates;
+        _drivers.Children.Clear();
+        _drivers.Children.Add(Ui.Text("PILOTES", "Text.Overline", new Thickness(0, 0, 0, 4)));
+        _drivers.Children.Add(DriverRow(checker.Info(DriverKind.ViGEmBus, status), "Crée les manettes virtuelles DualShock 4 et Xbox 360."));
+        _drivers.Children.Add(DriverRow(checker.Info(DriverKind.HidHide, status), "Masque la vraie manette aux jeux pour éviter la double entrée."));
+        _drivers.Children.Add(new SettingRow
+        {
+            Label = "Droits administrateur",
+            Description = "Nécessaires au masquage HidHide.",
+            Control = Status(OutputManager.IsElevated, "Actifs", "Absents"),
+        });
+        var check = Ui.Button(_driverBusy ? "Patiente…" : "Vérifier maintenant", "Button.Secondary", async (sender, _) => await CheckDriversNowAsync((Button)sender));
+        check.IsEnabled = !_driverBusy;
+        _drivers.Children.Add(new SettingRow
+        {
+            Label = "Mises à jour des pilotes",
+            Description = "Vérifiées automatiquement toutes les 12 h sur les publications officielles (GitHub). " +
+                          (checker.LastCheckLocal is { } d ? $"Dernière vérification {DriverUpdateLogic.FormatDateTime(d)}." : "Pas encore vérifiées."),
+            Control = check,
+        });
+        _drivers.Children.Add(new SettingRow
+        {
+            Label = "Réinstaller les pilotes",
+            Description = "Pour réparer : télécharge la dernière version officielle (Nefarius) et relance l'installation, même si elle est déjà en place.",
+            Control = Ui.Button("Réinstaller", "Button.Secondary", async (_, _) => await ReinstallAsync()),
+            Last = true,
+        });
+    }
+
+    private SettingRow DriverRow(DriverUpdateInfo info, string what)
+    {
+        var (text, tone) = info.State switch
+        {
+            DriverUpdateState.NotInstalled => ("Absent", BadgeTone.Warning),
+            DriverUpdateState.UpToDate => ("À jour", BadgeTone.Success),
+            _ => ("Installé", BadgeTone.Success),
+        };
+        var control = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        if (info.State == DriverUpdateState.UpdateAvailable)
+        {
+            var update = Ui.Button("Mettre à jour", "Button.Primary", async (_, _) => await UpdateDriverAsync(info.Kind));
+            update.IsEnabled = !_driverBusy;
+            control.Children.Add(update);
+        }
+        else
+            control.Children.Add(new Badge { ShowDot = true, Text = text, Tone = tone, VerticalAlignment = VerticalAlignment.Center });
+        return new SettingRow
+        {
+            Label = info.Kind.DisplayName(),
+            Description = what + "\n" + DriverUpdateLogic.Describe(info.State, info.InstalledVersion, info.Latest?.Tag, App.DriverUpdates.LastCheckLocal),
+            Control = control,
+        };
+    }
+
+    private async Task CheckDriversNowAsync(Button button)
+    {
+        if (_driverBusy) return;
+        _driverBusy = true;
+        button.IsEnabled = false;
+        button.Content = "Vérification…";
+        bool ok;
+        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+        {
+            try { ok = await App.DriverUpdates.CheckAsync(force: true, cts.Token); }
+            catch { ok = false; }
+        }
+        _driverBusy = false;
+        RefreshDrivers();
+        if (!ok)
+        {
+            _shell.Toast("Vérification impossible", "GitHub ne répond pas (hors ligne ?) : le dernier résultat connu est gardé.", NotifyKind.Warning);
+            return;
+        }
+        var status = DriverStatus.Detect();
+        App.DriverUpdates.TakeNewNotifications(status); // déjà affichées ici : pas de notification en double plus tard
+        var updates = App.DriverUpdates.Infos(status).Where(i => i.State == DriverUpdateState.UpdateAvailable).ToList();
+        if (updates.Count > 0)
+            _shell.Toast("Mise à jour disponible",
+                string.Join(" · ", updates.Select(u => $"{u.Kind.DisplayName()} {DriverVersion.Display(u.InstalledVersion)} → {DriverVersion.Display(u.Latest?.Tag)}")));
+        else
+            _shell.Toast("Pilotes vérifiés", "Rien à mettre à jour.", NotifyKind.Success);
+    }
+
+    /// <summary>Met à jour un pilote, uniquement s'il est réellement en retard sur la dernière version connue.</summary>
+    private async Task UpdateDriverAsync(DriverKind kind)
+    {
+        if (_driverBusy) return;
+        var info = App.DriverUpdates.Info(kind, DriverStatus.Detect()); // version installée relue à l'instant
+        if (info.State != DriverUpdateState.UpdateAvailable || info.Latest == null)
+        {
+            _shell.Toast($"{kind.DisplayName()} est déjà à jour", "Rien à télécharger.", NotifyKind.Success);
+            RefreshDrivers();
+            return;
+        }
+        string from = DriverVersion.Display(info.InstalledVersion), to = DriverVersion.Display(info.Latest.Tag);
+        var answer = MessageBox.Show(
+            $"Mettre à jour {kind.DisplayName()} de la version {from} à la version {to} ?\n\n" +
+            "L'installeur officiel (Nefarius, GitHub) est téléchargé et vérifié, puis Windows te demande l'autorisation administrateur " +
+            "et l'assistant d'installation s'ouvre. Un redémarrage de Windows peut être nécessaire.",
+            "Mettre à jour le pilote", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+
+        _driverBusy = true;
+        RefreshDrivers();
+        var progress = new Progress<string>(msg => _shell.Toast("Pilotes", msg));
+        try
+        {
+            await DriverInstaller.InstallAsync(kind, info.Latest, progress);
+        }
+        catch (Exception ex)
+        {
+            _shell.Toast("Échec de la mise à jour", $"{kind.DisplayName()} : {ex.Message}", NotifyKind.Warning);
+        }
+        _driverBusy = false;
+        var after = App.DriverUpdates.Info(kind, DriverStatus.Detect());
+        if (after.State == DriverUpdateState.UpToDate)
+            _shell.Toast($"{kind.DisplayName()} est à jour", $"Version {DriverVersion.Display(after.InstalledVersion)}.", NotifyKind.Success);
+        RefreshDrivers();
+    }
+
     private async Task ReinstallAsync()
     {
+        if (_driverBusy) return;
         var answer = MessageBox.Show(
             "Télécharger et réinstaller ViGEmBus et HidHide depuis les publications officielles de Nefarius sur GitHub ?",
             "Réinstaller les pilotes", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes) return;
+        _driverBusy = true;
+        RefreshDrivers();
         var progress = new Progress<string>(msg => _shell.Toast("Pilotes", msg));
         foreach (var kind in new[] { DriverKind.ViGEmBus, DriverKind.HidHide })
         {
             try { await DriverInstaller.InstallAsync(kind, progress); }
             catch (Exception ex) { _shell.Toast("Échec de l'installation", $"{kind.DisplayName()} : {ex.Message}", NotifyKind.Warning); }
         }
-        Build();
+        _driverBusy = false;
+        RefreshDrivers();
     }
 
     private static void OpenUrl(string url)

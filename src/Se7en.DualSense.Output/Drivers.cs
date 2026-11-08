@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Nefarius.ViGEm.Client;
@@ -52,6 +53,7 @@ public static class DriverInstaller
     {
         var c = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         c.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("se7en-dualsense", "1.0"));
+        c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         return c;
     }
 
@@ -59,25 +61,58 @@ public static class DriverInstaller
 
     private static string Repo(DriverKind kind) => kind == DriverKind.ViGEmBus ? "nefarius/ViGEmBus" : "nefarius/HidHide";
 
-    /// <summary>Télécharge puis lance l'installeur ; renvoie true si l'installeur s'est terminé sans erreur.</summary>
-    public static async Task<bool> InstallAsync(DriverKind kind, IProgress<string> progress, CancellationToken ct = default)
+    /// <summary>Dernière publication GitHub du pilote (installeur Windows x64, empreinte SHA-256 si GitHub la fournit).</summary>
+    public static async Task<DriverReleaseInfo> GetLatestReleaseAsync(DriverKind kind, CancellationToken ct = default)
     {
-        string name = kind.DisplayName();
-        progress.Report($"Recherche de la dernière version de {name}…");
-
         using var meta = await Http.GetAsync($"https://api.github.com/repos/{Repo(kind)}/releases/latest", ct);
         meta.EnsureSuccessStatusCode();
-        using var doc = JsonDocument.Parse(await meta.Content.ReadAsStringAsync(ct));
+        return ParseRelease(kind, await meta.Content.ReadAsStringAsync(ct));
+    }
+
+    /// <summary>Lit la réponse JSON de l'API GitHub « releases/latest ».</summary>
+    public static DriverReleaseInfo ParseRelease(DriverKind kind, string json)
+    {
+        using var doc = JsonDocument.Parse(json);
         string version = doc.RootElement.GetProperty("tag_name").GetString() ?? "?";
         var asset = doc.RootElement.GetProperty("assets").EnumerateArray()
             .FirstOrDefault(a => a.GetProperty("name").GetString() is string n
                                  && n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                                  && n.Contains("x64", StringComparison.OrdinalIgnoreCase));
         if (asset.ValueKind == JsonValueKind.Undefined)
-            throw new InvalidOperationException($"Aucun installeur Windows x64 trouvé pour {name} {version}.");
+            throw new InvalidOperationException($"Aucun installeur Windows x64 trouvé pour {kind.DisplayName()} {version}.");
 
-        string fileName = asset.GetProperty("name").GetString()!;
-        string url = asset.GetProperty("browser_download_url").GetString()!;
+        string? sha = null;
+        if (asset.TryGetProperty("digest", out var digest) && digest.ValueKind == JsonValueKind.String
+            && digest.GetString() is { } d && d.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase)
+            && d.Length == 7 + 64 && d[7..].All(Uri.IsHexDigit))
+            sha = d[7..].ToUpperInvariant();
+        return new DriverReleaseInfo
+        {
+            Tag = version,
+            AssetName = asset.GetProperty("name").GetString()!,
+            AssetUrl = asset.GetProperty("browser_download_url").GetString()!,
+            Sha256 = sha,
+            Size = asset.TryGetProperty("size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : 0,
+        };
+    }
+
+    /// <summary>Télécharge puis lance la dernière version de l'installeur ; renvoie true si l'installeur s'est terminé sans erreur.</summary>
+    public static async Task<bool> InstallAsync(DriverKind kind, IProgress<string> progress, CancellationToken ct = default)
+    {
+        progress.Report($"Recherche de la dernière version de {kind.DisplayName()}…");
+        return await InstallAsync(kind, await GetLatestReleaseAsync(kind, ct), progress, ct);
+    }
+
+    /// <summary>Télécharge puis lance l'installeur d'une publication connue ; renvoie true si l'installeur s'est terminé sans erreur.</summary>
+    public static async Task<bool> InstallAsync(DriverKind kind, DriverReleaseInfo release, IProgress<string> progress, CancellationToken ct = default)
+    {
+        string name = kind.DisplayName();
+        string version = DriverVersion.Display(release.Tag);
+        if (!Uri.TryCreate(release.AssetUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps
+            || !(uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".github.com", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Adresse de téléchargement inattendue pour {name}.");
+        string fileName = Path.GetFileName(release.AssetName);
+        string url = release.AssetUrl;
         string dir = Path.Combine(Path.GetTempPath(), "se7en-dualsense-drivers");
         Directory.CreateDirectory(dir);
         string path = Path.Combine(dir, fileName);
@@ -86,6 +121,19 @@ public static class DriverInstaller
         await using (var src = await Http.GetStreamAsync(url, ct))
         await using (var dst = File.Create(path))
             await src.CopyToAsync(dst, ct);
+
+        if (release.Sha256 != null)
+        {
+            progress.Report($"Vérification de l'empreinte SHA-256 de {name}…");
+            string actual;
+            await using (var f = File.OpenRead(path))
+                actual = Convert.ToHexString(await SHA256.HashDataAsync(f, ct));
+            if (!actual.Equals(release.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(path);
+                throw new InvalidOperationException($"L'empreinte SHA-256 de l'installeur {name} ne correspond pas à celle publiée : installation annulée par sécurité.");
+            }
+        }
 
         progress.Report($"Vérification de la signature de {name}…");
         if (!IsSignedByNefarius(path))
