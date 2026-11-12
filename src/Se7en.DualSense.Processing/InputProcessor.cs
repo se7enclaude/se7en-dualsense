@@ -30,6 +30,8 @@ public sealed class InputProcessor
     private readonly TouchpadTracker _touch = new();
     private readonly PsShortcuts _ps = new();
     private readonly MacroRun[] _runs = new MacroRun[8];
+    // Réglages pour lesquels les macros en cours ont été lancées (lu et écrit sur le fil d'E/S uniquement)
+    private ProcessingSettings? _runsSettings;
     private readonly FlickStick _flick = new();
     private readonly AutoRecenter _recenter = new();
     private double _testTurnRemaining;
@@ -87,6 +89,14 @@ public sealed class InputProcessor
         var s = _settings;
         var opt = _options;
         output = raw;
+
+        // Autres réglages (changement de profil, profil rechargé) : les macros en cours s'arrêtent,
+        // sinon une macro en bascule continuerait sans qu'aucun appui ne puisse plus l'arrêter.
+        if (!ReferenceEquals(s, _runsSettings))
+        {
+            _runsSettings = s;
+            Array.Clear(_runs);
+        }
 
         // ── Anti-drift continu : manette posée, sticks lâchés → le centre suit doucement ──
         if (opt.AutoRecenter && raw.IsFullReport)
@@ -332,7 +342,7 @@ public sealed class InputProcessor
         if (macro.Steps.Count == 0) return;
         for (int i = 0; i < _runs.Length; i++)
         {
-            if (!ReferenceEquals(_runs[i].Macro, macro)) continue;
+            if (_runs[i].Macro?.Id != macro.Id) continue;
             // Mode bascule : le deuxième appui arrête ; sinon on relance depuis le début
             if (macro.Mode == MacroMode.Toggle)
                 _runs[i] = default;

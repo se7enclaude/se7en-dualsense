@@ -17,6 +17,9 @@ public sealed class DualSenseConnection : IDisposable
     private static readonly object ClaimLock = new();
     private static readonly HashSet<string> ClaimedPaths = new(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> ActiveAddresses = new(StringComparer.OrdinalIgnoreCase);
+    // Chemins écartés parce qu'ils mènent à une manette déjà ouverte par un autre chemin (chemin → adresse) :
+    // ignorés tant que cette adresse reste active, sinon ils compteraient comme une manette de plus.
+    private static readonly Dictionary<string, string> DuplicatePaths = new(StringComparer.OrdinalIgnoreCase);
 
     private const string BluetoothHidServiceGuid = "{00001124-0000-1000-8000-00805f9b34fb}";
     private const int ReadTimeoutMs = 1000;
@@ -173,7 +176,7 @@ public sealed class DualSenseConnection : IDisposable
             lock (ClaimLock)
             {
                 return SupportedDevices()
-                    .Where(d => !ClaimedPaths.Contains(d.DevicePath))
+                    .Where(d => IsAvailable(d.DevicePath))
                     // Priorité à l'USB si les deux sont présents
                     .OrderBy(d => IsBluetooth(d) ? 1 : 0)
                     .FirstOrDefault();
@@ -191,13 +194,18 @@ public sealed class DualSenseConnection : IDisposable
         try
         {
             lock (ClaimLock)
-                return SupportedDevices().Count(d => !ClaimedPaths.Contains(d.DevicePath));
+                return SupportedDevices().Count(d => IsAvailable(d.DevicePath));
         }
         catch
         {
             return 0;
         }
     }
+
+    /// <summary>Chemin libre : ni pris par une connexion, ni second chemin d'une manette déjà ouverte. Sous ClaimLock.</summary>
+    private static bool IsAvailable(string path) =>
+        !ClaimedPaths.Contains(path)
+        && !(DuplicatePaths.TryGetValue(path, out var address) && ActiveAddresses.Contains(address));
 
     private static bool IsBluetooth(HidDevice d)
     {
@@ -226,14 +234,16 @@ public sealed class DualSenseConnection : IDisposable
             {
                 lock (ClaimLock)
                 {
-                    // Même manette déjà ouverte par une autre connexion (USB + Bluetooth en même temps)
+                    // Même manette déjà ouverte par une autre connexion (USB + Bluetooth en même temps) :
+                    // ce chemin est mis de côté tant que l'autre reste ouvert
                     if (!ActiveAddresses.Add(address))
                     {
+                        DuplicatePaths[hid.DevicePath] = address;
                         address = null;
                         stream.Dispose();
-                        Thread.Sleep(RetryDelayMs);
                         return;
                     }
+                    DuplicatePaths.Remove(hid.DevicePath);
                 }
             }
             RunOpenedSession(hid, stream, address);
@@ -243,7 +253,13 @@ public sealed class DualSenseConnection : IDisposable
             lock (ClaimLock)
             {
                 ClaimedPaths.Remove(hid.DevicePath);
-                if (address != null) ActiveAddresses.Remove(address);
+                if (address != null)
+                {
+                    ActiveAddresses.Remove(address);
+                    // L'autre chemin de cette manette redevient utilisable (câble débranché, Bluetooth coupé…)
+                    foreach (var path in DuplicatePaths.Where(kv => string.Equals(kv.Value, address, StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Key).ToList())
+                        DuplicatePaths.Remove(path);
+                }
             }
         }
     }

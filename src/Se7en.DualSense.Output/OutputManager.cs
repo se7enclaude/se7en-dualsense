@@ -47,8 +47,10 @@ public sealed class OutputManager : IDisposable
         _connection = connection;
         _hidHide = hidHide;
         _mode = initialMode;
-        _hidHide.Log += msg => Log?.Invoke(msg);
+        _hidHide.Log += OnHidHideLog;
     }
+
+    private void OnHidHideLog(string message) => Log?.Invoke(message);
 
     public event Action<OutputStatus>? StatusChanged;
     public event Action<string>? Log;
@@ -198,11 +200,20 @@ public sealed class OutputManager : IDisposable
         }
     }
 
+    private static readonly Lazy<bool> Elevated = new(() => IsElevated);
+
+    /// <summary>
+    /// Préparation de HidHide (lance HidHideCLI, jusqu'à plusieurs secondes) : faite dans <see cref="ApplyAsync"/>,
+    /// hors du fil de l'interface, avant le premier masquage. Une seule fois par session (mise en cache par le service).
+    /// </summary>
+    private void EnsureHidHideReady()
+    {
+        if (!_hidHideReady && _hidHide.IsInstalled && Elevated.Value)
+            _hidHideReady = _hidHide.EnsureSessionReady();
+    }
+
     public void Start()
     {
-        if (_hidHide.IsInstalled && IsElevated)
-            _hidHideReady = _hidHide.EnsureSessionReady();
-
         try
         {
             _client = new ViGEmClient();
@@ -263,6 +274,7 @@ public sealed class OutputManager : IDisposable
         try
         {
             if (_disposed) return;
+            EnsureHidHideReady();
             var device = _connection.Device;
             var mode = _mode;
             string message;
@@ -408,24 +420,30 @@ public sealed class OutputManager : IDisposable
         try { _hidHide.UnhideAll(); } catch { /* dernier recours */ }
     }
 
+    /// <summary>
+    /// Libère cette sortie (manette retirée ou fermeture) : seule la manette masquée par cette sortie est démasquée,
+    /// les autres manettes restent masquées. Le démasquage complet reste <see cref="EmergencyRestore"/>.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         _connection.StateReceived -= OnState;
+        _hidHide.Log -= OnHidHideLog;
         _emitActions = false;
         try { _emitter.ReleaseAll(); } catch { /* fermeture */ }
-        _applyGate.Wait(3000);
+        bool entered = _applyGate.Wait(3000);
         try
         {
-            EmergencyRestore();
+            try { UnhideCurrent(); } catch { /* le journal HidHide démasquera au prochain lancement */ }
             _hiddenInstance = null;
             DisposePad();
             _client?.Dispose();
+            _pulseTimer?.Dispose();
         }
         finally
         {
-            _applyGate.Release();
+            if (entered) _applyGate.Release();
         }
     }
 }

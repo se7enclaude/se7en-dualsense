@@ -21,6 +21,8 @@ public sealed class ControllerSlot : IDisposable
     {
         Index = index;
         Output = new OutputManager(Connection, hidHide, mode);
+        // Place supplémentaire : libérée si aucune manette ne s'y connecte (voir TrackSlot)
+        if (index > 0) DisconnectedSince = DateTime.UtcNow;
     }
 
     public int Index { get; set; }
@@ -28,8 +30,8 @@ public sealed class ControllerSlot : IDisposable
     public OutputManager Output { get; }
     public DualSenseDeviceInfo? Device => Connection.Device;
 
-    /// <summary>Usure : décalage brut au repos (sans calibration), pour l'historique.</summary>
-    public DriftDetector RawDrift { get; } = new();
+    /// <summary>Usure : décalage brut au repos (sans calibration), pour l'historique (alimenté par le suivi à 10 Hz).</summary>
+    public DriftDetector RawDrift { get; } = new(ControllerService.TrackDriftWindow, ControllerService.TrackDriftEvaluateEvery);
 
     internal DualSenseDeviceInfo? LastDevice;
     internal long LastReportCount = -1;
@@ -53,7 +55,9 @@ public sealed class ControllerSlot : IDisposable
 
 /// <summary>
 /// Pont entre les threads d'E/S des manettes et l'interface, et chef d'orchestre des profils.
-/// Le thread HID n'est jamais bloqué par l'UI : l'interface lit un instantané à chaque image.
+/// Le thread HID n'est jamais bloqué par l'UI. Le suivi des manettes (connexion, batterie, usure) tourne à
+/// fréquence fixe (<see cref="Tick"/>, 10 Hz) ; l'affichage image par image (<see cref="Frame"/>) n'est actif
+/// que tant qu'un abonné en a besoin (fenêtre visible, overlay ouvert…).
 /// Plusieurs manettes : une « place » par manette ; l'interface affiche la manette sélectionnée.
 /// </summary>
 public sealed class ControllerService : IDisposable
@@ -66,6 +70,11 @@ public sealed class ControllerService : IDisposable
     private string? _gameExe;
     private Timer? _slotTimer;
     private readonly DispatcherTimer _micTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
+    // Suivi des manettes, indépendant de l'écran (fenêtre cachée, minimisée…)
+    private readonly DispatcherTimer _trackTimer = new() { Interval = TrackInterval };
+    private bool _renderingHooked;
+    private bool _disposed;
+    private Action<FrameData>? _frame;
     private readonly AudioEngine _audio = new();
     private readonly DispatcherTimer _effects = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly System.Diagnostics.Stopwatch _effectClock = System.Diagnostics.Stopwatch.StartNew();
@@ -86,8 +95,16 @@ public sealed class ControllerService : IDisposable
         };
         _audio.Transient += OnAudioTransient;
         _effects.Tick += (_, _) => StepLightbarEffects();
+        _trackTimer.Tick += (_, _) => OnTrackTick();
         ApplyProfileSettings(ActiveProfile);
     }
+
+    /// <summary>Période du suivi des manettes (10 Hz).</summary>
+    public static readonly TimeSpan TrackInterval = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>Détecteurs de drift alimentés à 10 Hz : 25 mesures ≈ 2,5 s (comme 150 images à 60 i/s), évaluées toutes les 0,5 s.</summary>
+    public const int TrackDriftWindow = 25;
+    public const int TrackDriftEvaluateEvery = 5;
 
     private static void OnUi(Action a) => Application.Current?.Dispatcher.BeginInvoke(a);
 
@@ -120,7 +137,26 @@ public sealed class ControllerService : IDisposable
 
     // ───────────── Événements (thread UI) ─────────────
 
-    public event Action<FrameData>? Frame;
+    /// <summary>
+    /// À chaque image affichée (CompositionTarget.Rendering), pour l'affichage uniquement.
+    /// Le rendu n'est suivi que tant qu'il y a au moins un abonné.
+    /// </summary>
+    public event Action<FrameData>? Frame
+    {
+        add
+        {
+            _frame += value;
+            UpdateRenderingHook();
+        }
+        remove
+        {
+            _frame -= value;
+            UpdateRenderingHook();
+        }
+    }
+
+    /// <summary>Suivi à fréquence fixe (10 Hz), même fenêtre cachée : batterie, état, drift, infobulle…</summary>
+    public event Action<FrameData>? Tick;
     public event Action<DualSenseDeviceInfo?>? DeviceChanged;
     /// <summary>Une manette apparaît ou disparaît, ou la sélection change.</summary>
     public event Action? ControllersChanged;
@@ -162,7 +198,16 @@ public sealed class ControllerService : IDisposable
             _micTimer.Start();
             PollMicrophone();
         }
-        CompositionTarget.Rendering += OnRendering;
+        _trackTimer.Start();
+    }
+
+    private void UpdateRenderingHook()
+    {
+        bool wanted = _frame != null && !_disposed;
+        if (wanted == _renderingHooked) return;
+        _renderingHooked = wanted;
+        if (wanted) CompositionTarget.Rendering += OnRendering;
+        else CompositionTarget.Rendering -= OnRendering;
     }
 
     // ───────────── Plusieurs manettes ─────────────
@@ -214,7 +259,7 @@ public sealed class ControllerService : IDisposable
     {
         if (slot == _selected || !Slots.Contains(slot)) return;
         _selected = slot;
-        _selected.LastDevice = null; // déclenche DeviceChanged à la prochaine image
+        _selected.LastDevice = null; // déclenche DeviceChanged au prochain suivi
         _selected.LastReportCount = -1;
         OutputStatusChanged?.Invoke(_selected.Output.Status);
         ControllersChanged?.Invoke();
@@ -227,8 +272,13 @@ public sealed class ControllerService : IDisposable
             if (slot.Index == 0 || !_slots.Remove(slot)) return;
             for (int i = 0; i < _slots.Count; i++) _slots[i].Index = i;
         }
-        if (_selected == slot) _selected = _slots[0];
-        slot.Dispose();
+        if (_selected == slot) _selected = Slots[0];
+        // Arrêt du fil d'E/S et démasquage HidHide (processus externe) : jamais sur le fil de l'interface
+        _ = Task.Run(() =>
+        {
+            try { slot.Dispose(); }
+            catch (Exception ex) { App.LogError(ex); }
+        });
         UpdatePlayerLeds();
         ControllersChanged?.Invoke();
     }
@@ -564,24 +614,40 @@ public sealed class ControllerService : IDisposable
 
     public void ResetCalibration() => SaveCalibration(StickCalibration.Identity, StickCalibration.Identity);
 
-    // ───────────── Image par image ─────────────
+    // ───────────── Suivi (10 Hz) et image par image ─────────────
 
-    private void OnRendering(object? sender, EventArgs e)
+    private void OnTrackTick()
     {
         if (IsDemo)
         {
-            RenderDemo();
+            Tick?.Invoke(DemoFrame());
             return;
         }
 
         foreach (var slot in Slots)
             TrackSlot(slot);
 
+        if (Tick is { } tick)
+        {
+            var selected = _selected;
+            tick(new FrameData(selected.Connection.Latest, selected.Output.LastProcessed, selected.Device, selected.Connection.GetOutput(), true));
+        }
+    }
+
+    private void OnRendering(object? sender, EventArgs e)
+    {
+        if (_frame is not { } frame) return;
+        if (IsDemo)
+        {
+            frame(DemoFrame());
+            return;
+        }
+
         var selected = _selected;
         long count = selected.Connection.ReportCount;
         bool changed = count != selected.LastReportCount;
         selected.LastReportCount = count;
-        Frame?.Invoke(new FrameData(selected.Connection.Latest, selected.Output.LastProcessed, selected.Device, selected.Connection.GetOutput(), changed));
+        frame(new FrameData(selected.Connection.Latest, selected.Output.LastProcessed, selected.Device, selected.Connection.GetOutput(), changed));
     }
 
     /// <summary>Connexion / déconnexion, calibration, batterie faible, usure : pour chaque manette.</summary>
@@ -702,7 +768,7 @@ public sealed class ControllerService : IDisposable
     private readonly System.Diagnostics.Stopwatch _demoClock = System.Diagnostics.Stopwatch.StartNew();
     private DualSenseDeviceInfo? _demoLast;
 
-    private void RenderDemo()
+    private FrameData DemoFrame()
     {
         if (!ReferenceEquals(_demoLast, DemoDevice))
         {
@@ -739,12 +805,14 @@ public sealed class ControllerService : IDisposable
         };
         Output.Calibration.Add(state);
         Output.Processor.Process(state, out var processed);
-        Frame?.Invoke(new FrameData(state, processed, DemoDevice, Connection.GetOutput(), true));
+        return new FrameData(state, processed, DemoDevice, Connection.GetOutput(), true);
     }
 
     public void Dispose()
     {
-        CompositionTarget.Rendering -= OnRendering;
+        _disposed = true;
+        UpdateRenderingHook();
+        _trackTimer.Stop();
         _micTimer.Stop();
         _effects.Stop();
         if (_screenSampling) ScreenSampler.Stop();
@@ -754,6 +822,9 @@ public sealed class ControllerService : IDisposable
         _audio.Dispose();
         DriftHistory.Flush();
         foreach (var s in Slots) s.Dispose();
+        // Chaque place ne démasque que sa manette : à la fermeture, tout ce que la session a masqué est rendu visible
+        if (!IsDemo)
+            try { HidHide.UnhideAll(); } catch { /* le journal démasquera au prochain lancement */ }
     }
 }
 

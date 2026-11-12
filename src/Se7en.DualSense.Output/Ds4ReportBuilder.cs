@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using Se7en.DualSense.Hid;
 
 namespace Se7en.DualSense.Output;
@@ -18,9 +19,19 @@ public sealed class Ds4ReportBuilder
     // La DualSense mesure 1920 × 1080 points tactiles, la DS4 1920 × 943
     private const int Ds4TouchMaxY = 942;
 
+    // Horodatage DS4 en unités de 5,33 µs ; celui de la DualSense est en unités de 0,33 µs (16 fois plus fines)
+    private const int SensorUnitsPerDs4Unit = 16;
+    // Au-delà d'une seconde d'écart (ou recul), le compteur de la manette n'est plus fiable : temps écoulé
+    private const uint MaxSensorDelta = 3_000_000;
+    private const double Ds4UnitsPerSecond = 187_500;
+
     private byte _touchPacketCounter;
     private ushort _timestamp;
     private bool _wasTouching;
+    private bool _hasSensorTimestamp;
+    private uint _lastSensorTimestamp;
+    private uint _sensorRemainder;
+    private long _lastBuildTicks;
 
     public void Build(in DualSenseState s, Span<byte> report)
     {
@@ -43,8 +54,8 @@ public sealed class Ds4ReportBuilder
         report[7] = s.L2;
         report[8] = s.R2;
 
-        // Horodatage en unités de 5,33 µs ; une progression régulière suffit aux jeux
-        _timestamp = unchecked((ushort)(_timestamp + 188));
+        // Horodatage en unités de 5,33 µs, dérivé de celui des capteurs (les jeux en tirent le pas du gyroscope)
+        _timestamp = unchecked((ushort)(_timestamp + NextTimestampDelta(s)));
         BinaryPrimitives.WriteUInt16LittleEndian(report.Slice(9), _timestamp);
 
         byte battery = (byte)Math.Clamp(s.BatteryPercent * 255 / 100, 0, 255);
@@ -70,6 +81,42 @@ public sealed class Ds4ReportBuilder
         report[33] = _touchPacketCounter;
         EncodeTouch(s.Touch0, report.Slice(34, 4));
         EncodeTouch(s.Touch1, report.Slice(38, 4));
+    }
+
+    /// <summary>
+    /// Écart depuis le rapport précédent, en unités DS4 : celui des capteurs de la DualSense s'il est disponible
+    /// (rapport complet), sinon le temps réellement écoulé.
+    /// </summary>
+    private uint NextTimestampDelta(in DualSenseState s)
+    {
+        long now = Stopwatch.GetTimestamp();
+        long previous = _lastBuildTicks;
+        _lastBuildTicks = now;
+
+        if (s.IsFullReport && s.SensorTimestamp != 0)
+        {
+            bool had = _hasSensorTimestamp;
+            uint delta = unchecked(s.SensorTimestamp - _lastSensorTimestamp);
+            _hasSensorTimestamp = true;
+            _lastSensorTimestamp = s.SensorTimestamp;
+            if (had && delta <= MaxSensorDelta)
+            {
+                // Le reste de la division est reporté : aucune dérive sur la durée
+                uint total = _sensorRemainder + delta;
+                _sensorRemainder = total % SensorUnitsPerDs4Unit;
+                return total / SensorUnitsPerDs4Unit;
+            }
+            _sensorRemainder = 0;
+        }
+        else
+        {
+            _hasSensorTimestamp = false;
+        }
+
+        // Repli : temps écoulé depuis le rapport précédent (premier rapport : un pas de 1 ms environ)
+        if (previous == 0) return 188;
+        double seconds = (double)(now - previous) / Stopwatch.Frequency;
+        return (uint)Math.Clamp(seconds * Ds4UnitsPerSecond, 0, ushort.MaxValue);
     }
 
     public static ushort EncodeButtons(DualSenseButtons b)

@@ -12,6 +12,7 @@ namespace Se7en.DualSense.App.Pages;
 public sealed class FeedbackPage : UserControl
 {
     private readonly Ui.Debouncer _save = new();
+    private readonly Ui.Debouncer _saveSettings = new();
     private readonly StackPanel _root = new();
     private readonly DispatcherTimer _rumbleStop = new() { Interval = TimeSpan.FromMilliseconds(900) };
     private Border _preview = null!;
@@ -161,8 +162,8 @@ public sealed class FeedbackPage : UserControl
         sound.Children.Add(Ui.Slider("Volume dans la manette", 0, 1, AppSettings.Current.MirrorVolume, Ui.Percent, v =>
         {
             AppSettings.Current.MirrorVolume = v;
-            AppSettings.Save();
             App.Controller.RefreshAudio();
+            _saveSettings.Run(AppSettings.Save);
         }, 0.05).WithMargin(new Thickness(0, 12, 0, 0)));
         var defaults = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
         defaults.Children.Add(Ui.Button("Manette = sortie audio de Windows", "Button.Secondary", (_, _) => SetDefault(outputId, "Le son de Windows sort maintenant de la manette."), new Thickness(0, 0, 8, 8))

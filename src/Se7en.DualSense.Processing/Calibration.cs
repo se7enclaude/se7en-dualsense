@@ -129,11 +129,23 @@ public sealed class CalibrationSampler
 /// </summary>
 public sealed class DriftDetector
 {
-    private const int Window = 150;          // ~2,5 s à 60 images/s (alimenté par l'interface)
     private const double StableNoise = 0.012;
 
-    private readonly double[] _lx = new double[Window], _ly = new double[Window], _rx = new double[Window], _ry = new double[Window];
+    // Taille de la fenêtre (en mesures) et cadence d'évaluation : la durée couverte dépend de la fréquence d'alimentation
+    private readonly int _window, _evaluateEvery;
+    private readonly double[] _lx, _ly, _rx, _ry;
     private int _index, _filled;
+
+    /// <summary>Par défaut 150 mesures évaluées toutes les 30 (~2,5 s à 60 mesures/s).</summary>
+    public DriftDetector(int window = 150, int evaluateEvery = 30)
+    {
+        _window = Math.Max(2, window);
+        _evaluateEvery = Math.Clamp(evaluateEvery, 1, _window);
+        _lx = new double[_window];
+        _ly = new double[_window];
+        _rx = new double[_window];
+        _ry = new double[_window];
+    }
 
     /// <summary>Décalage au repos détecté (0 si aucun), par stick.</summary>
     public double LeftDrift { get; private set; }
@@ -143,7 +155,7 @@ public sealed class DriftDetector
     public double LeftRest { get; private set; } = double.NaN;
     public double RightRest { get; private set; } = double.NaN;
 
-    /// <summary>Incrémenté à chaque nouvelle évaluation (toutes les 30 mesures).</summary>
+    /// <summary>Incrémenté à chaque nouvelle évaluation (toutes les <c>evaluateEvery</c> mesures).</summary>
     public int Evaluations { get; private set; }
 
     public void Add(in DualSenseState s, StickCalibration left, StickCalibration right)
@@ -152,9 +164,9 @@ public sealed class DriftDetector
         _ly[_index] = StickMath.Normalize(s.LeftY) - left.CenterY;
         _rx[_index] = StickMath.Normalize(s.RightX) - right.CenterX;
         _ry[_index] = StickMath.Normalize(s.RightY) - right.CenterY;
-        _index = (_index + 1) % Window;
-        if (_filled < Window) _filled++;
-        if (_index % 30 != 0 || _filled < Window) return;
+        _index = (_index + 1) % _window;
+        if (_filled < _window) _filled++;
+        if (_index % _evaluateEvery != 0 || _filled < _window) return;
 
         (LeftDrift, LeftRest) = Evaluate(_lx, _ly);
         (RightDrift, RightRest) = Evaluate(_rx, _ry);

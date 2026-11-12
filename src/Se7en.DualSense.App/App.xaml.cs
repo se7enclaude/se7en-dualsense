@@ -69,7 +69,17 @@ public partial class App : Application
         }
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += (_, _) => Controller?.Output.EmergencyRestore();
+        AppDomain.CurrentDomain.UnhandledException += (_, ev) =>
+        {
+            // Exception hors du fil de l'interface : notée dans error.log avant le démasquage de secours
+            if (ev.ExceptionObject is Exception ex) LogError(ex);
+            Controller?.Output.EmergencyRestore();
+        };
+        TaskScheduler.UnobservedTaskException += (_, ev) =>
+        {
+            LogError(ev.Exception);
+            ev.SetObserved();
+        };
         AppDomain.CurrentDomain.ProcessExit += (_, _) => Controller?.Output.EmergencyRestore();
         SessionEnding += (_, _) => Controller?.Output.EmergencyRestore();
 

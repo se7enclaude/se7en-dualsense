@@ -106,6 +106,40 @@ public class Ds4ConversionTests
         Assert.Equal(942, y);
     }
 
+    [Fact]
+    public void Ds4_timestamp_follows_the_sensor_clock()
+    {
+        var builder = new Ds4ReportBuilder();
+        var report = new byte[Ds4ReportBuilder.Length];
+        ushort Stamp(uint sensor, bool full = true)
+        {
+            builder.Build(new DualSenseState { IsFullReport = full, SensorTimestamp = sensor }, report);
+            return BitConverter.ToUInt16(report, 9);
+        }
+
+        // DualSense : 0,33 µs par unité ; DS4 : 5,33 µs → écart divisé par 16, reste reporté
+        ushort t0 = Stamp(1000);
+        ushort t1 = Stamp(4000);   // 1 ms : 3000 / 16 = 187 (reste 8)
+        ushort t2 = Stamp(7000);   // 3000 + 8 = 3008 / 16 = 188
+        ushort t3 = Stamp(37000);  // 10 ms : 1875
+        Assert.Equal(187, (ushort)(t1 - t0));
+        Assert.Equal(188, (ushort)(t2 - t1));
+        Assert.Equal(1875, (ushort)(t3 - t2));
+
+        // Compteur 32 bits de la manette qui reboucle : l'écart reste juste
+        var wrap = new Ds4ReportBuilder();
+        wrap.Build(new DualSenseState { IsFullReport = true, SensorTimestamp = uint.MaxValue - 1599 }, report);
+        ushort w0 = BitConverter.ToUInt16(report, 9);
+        wrap.Build(new DualSenseState { IsFullReport = true, SensorTimestamp = 1600 }, report);
+        Assert.Equal(200, (ushort)(BitConverter.ToUInt16(report, 9) - w0));
+
+        // Sans capteurs (rapport Bluetooth réduit) : le temps écoulé fait avancer l'horodatage
+        ushort r0 = Stamp(0, full: false);
+        Thread.Sleep(20);
+        ushort r1 = Stamp(0, full: false);
+        Assert.InRange((ushort)(r1 - r0), 1000, 60000);
+    }
+
     [Theory]
     [InlineData(DualSenseButtons.DpadUp, 0)]
     [InlineData(DualSenseButtons.DpadUp | DualSenseButtons.DpadRight, 1)]

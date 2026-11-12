@@ -15,7 +15,9 @@ namespace Se7en.DualSense.App.Pages;
 public sealed class SticksPage : UserControl, ILivePage
 {
     private readonly IShell _shell;
-    private readonly DriftDetector _drift = new();
+    // Alimenté par le suivi à 10 Hz du service (Track), indépendamment de l'écran
+    private readonly DriftDetector _drift = new(ControllerService.TrackDriftWindow, ControllerService.TrackDriftEvaluateEvery);
+    private int _driftEvaluation = -1;
     private readonly Ui.Debouncer _save = new();
     private readonly StackPanel _root = new();
     private StickPanel _left = null!, _right = null!;
@@ -81,6 +83,8 @@ public sealed class SticksPage : UserControl, ILivePage
         grid.Children.Add(_left.Card);
         grid.Children.Add(_right.Card);
         _root.Children.Add(grid);
+        // Panneaux recréés : on y remet le dernier état de drift connu
+        if (_driftEvaluation >= 0) RefreshDrift();
 
         // ── Options globales ──
         var options = new StackPanel();
@@ -121,9 +125,21 @@ public sealed class SticksPage : UserControl, ILivePage
                      StickMath.Normalize(p.LeftX), StickMath.Normalize(p.LeftY));
         _right.Update(StickMath.Normalize(swap ? s.LeftX : s.RightX), StickMath.Normalize(swap ? s.LeftY : s.RightY),
                       StickMath.Normalize(p.RightX), StickMath.Normalize(p.RightY));
+    }
 
+    /// <summary>Détection du drift (suivi à 10 Hz, même fenêtre cachée) : badges et pastille d'alerte.</summary>
+    public void Track(in FrameData frame)
+    {
+        if (!frame.IsConnected) return;
         var proc = App.Controller.Output.Processor;
-        _drift.Add(s, proc.LeftCalibration, proc.RightCalibration);
+        _drift.Add(frame.State, proc.LeftCalibration, proc.RightCalibration);
+        if (_drift.Evaluations == _driftEvaluation) return;
+        _driftEvaluation = _drift.Evaluations;
+        RefreshDrift();
+    }
+
+    private void RefreshDrift()
+    {
         _left.SetDrift(_drift.LeftDrift, Settings.LeftStick.InnerDeadzone);
         _right.SetDrift(_drift.RightDrift, Settings.RightStick.InnerDeadzone);
         _shell.SetDriftAlert(_drift.LeftDrift > Settings.LeftStick.InnerDeadzone || _drift.RightDrift > Settings.RightStick.InnerDeadzone);

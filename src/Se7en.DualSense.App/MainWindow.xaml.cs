@@ -81,7 +81,8 @@ public partial class MainWindow : Window, IShell
 
         var c = App.Controller;
         c.DeviceChanged += OnDeviceChanged;
-        c.Frame += OnFrame;
+        // Suivi à 10 Hz permanent ; rendu image par image seulement fenêtre visible (voir UpdateFrameSubscription)
+        c.Tick += OnTick;
         c.OutputStatusChanged += _home.OnOutputStatus;
         c.Log += _home.ShowLog;
         c.ActiveProfileChanged += OnProfileChanged;
@@ -115,6 +116,8 @@ public partial class MainWindow : Window, IShell
         PreviewKeyDown += OnShortcut;
         SizeChanged += (_, _) => UpdateCompactLayout();
         StateChanged += (_, _) => Root.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
+        StateChanged += (_, _) => UpdateFrameSubscription();
+        IsVisibleChanged += (_, _) => UpdateFrameSubscription();
 
         if (!ControllerService.IsDemo)
             _tray = new TrayService(ShowFromTray, Quit);
@@ -362,27 +365,40 @@ public partial class MainWindow : Window, IShell
         new OnboardingWizard(this).Start();
     }
 
-    // ───────────── Image par image ─────────────
+    // ───────────── Image par image (fenêtre visible) et suivi à 10 Hz ─────────────
+
+    private bool _frameSubscribed;
+
+    /// <summary>Le rendu image par image ne tourne que fenêtre visible et non réduite.</summary>
+    private void UpdateFrameSubscription()
+    {
+        bool wanted = IsVisible && WindowState != WindowState.Minimized;
+        if (wanted == _frameSubscribed) return;
+        _frameSubscribed = wanted;
+        if (wanted) App.Controller.Frame += OnFrame;
+        else App.Controller.Frame -= OnFrame;
+    }
 
     private void OnFrame(FrameData frame)
     {
-        if (WindowState != WindowState.Minimized && IsVisible)
-        {
-            if (PageHost.Content is ILivePage live)
-                live.Update(frame);
-        }
-        // Le détecteur de drift tourne même hors de la page Sticks
-        if (!ReferenceEquals(PageHost.Content, _pages["sticks"]))
-            ((ILivePage)_pages["sticks"]).Update(frame);
-
-        if (frame.IsConnected && frame.State.IsFullReport)
-            DeviceBattery.SetLevel(frame.State.BatteryPercent, frame.State.Charging == ChargingState.Charging);
+        if (PageHost.Content is ILivePage live)
+            live.Update(frame);
 
         // Navigation à la manette (jamais en mode démo : les appuis simulés changeraient d'onglet)
         if (frame.IsConnected && IsActive && AppSettings.Current.ControllerNavigation && !ControllerService.IsDemo && !App.SuspendControllerNavigation)
             HandleControllerNavigation(frame.State.Buttons);
+    }
 
-        if (++_statusTick % 30 == 0)
+    private void OnTick(FrameData frame)
+    {
+        // Le détecteur de drift tourne même fenêtre cachée ou hors de la page Sticks
+        ((SticksPage)_pages["sticks"]).Track(frame);
+
+        if (frame.IsConnected && frame.State.IsFullReport)
+            DeviceBattery.SetLevel(frame.State.BatteryPercent, frame.State.Charging == ChargingState.Charging);
+
+        // Toutes les 0,5 s (comme 30 images à 60 i/s auparavant)
+        if (++_statusTick % 5 == 0)
         {
             RefreshStatusText(frame);
             // Accent « barre lumineuse » : l'interface suit la couleur envoyée à la manette

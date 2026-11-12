@@ -246,13 +246,22 @@ public sealed class ProcessWatcher : IDisposable
     {
         try
         {
-            var running = new HashSet<string>(
-                Process.GetProcesses().Select(p => { try { return p.ProcessName + ".exe"; } catch { return ""; } }),
-                StringComparer.OrdinalIgnoreCase);
+            var candidates = _store.All.Where(p => !p.IsDefault && p.Executables.Count > 0).ToList();
+            // Aucun profil associé à un jeu : inutile d'énumérer les processus
+            var running = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (candidates.Count > 0)
+            {
+                foreach (var proc in Process.GetProcesses())
+                {
+                    try { running.Add(proc.ProcessName + ".exe"); }
+                    catch { /* processus terminé entre-temps */ }
+                    finally { proc.Dispose(); }
+                }
+            }
 
             Profile? match = null;
             string? exe = null;
-            foreach (var p in _store.All.Where(p => !p.IsDefault))
+            foreach (var p in candidates)
             {
                 exe = p.Executables.FirstOrDefault(e => running.Contains(Path.GetFileName(e)));
                 if (exe != null) { match = p; break; }

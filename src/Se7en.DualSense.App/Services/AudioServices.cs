@@ -179,6 +179,7 @@ public sealed class AudioEngine : IDisposable
     private Biquad _lowL, _lowR, _bandHp, _bandLp;
     private int _sampleRate;
     private bool _loopsBack;
+    private bool _started;
 
     /// <summary>(gros moteur, petit moteur) en 0-255 (modes Basses / Basses + médiums).</summary>
     public event Action<byte, byte>? Rumble;
@@ -216,7 +217,12 @@ public sealed class AudioEngine : IDisposable
                 _provider.Intensity = config.Intensity;
                 _provider.MirrorVolume = config.Mirror && !_loopsBack ? config.MirrorVolume : 0;
             }
-            if (old == config && (_capture != null) == config.NeedsCapture && (_out != null) == config.NeedsControllerOutput) return;
+            // Intensité, volume, mode de vibration : appliqués à chaud ci-dessus (ou lus à chaque paquet audio).
+            // Le moteur n'est relancé que si la capture ou la sortie vers la manette doivent démarrer ou s'arrêter ;
+            // un changement de périphérique passe par Refresh().
+            if (old.NeedsCapture == config.NeedsCapture && old.NeedsControllerOutput == config.NeedsControllerOutput
+                && _started) return;
+            _started = true;
             Restart();
         }
     }

@@ -72,6 +72,34 @@ public class ActionTests
     }
 
     [Fact]
+    public void Toggle_macro_stops_when_settings_change_and_can_be_restarted_and_stopped()
+    {
+        ProcessingSettings Settings() => new()
+        {
+            // Nouvelle instance à chaque fois, comme un profil relu depuis le disque
+            Macros = { new Macro { Id = "m", Mode = MacroMode.Toggle, Steps = { new MacroStep(DualSenseButtons.Square, 100) } } },
+            Actions = { [DualSenseButtons.R3] = InputAction.ForMacro("m") },
+        };
+        var p = Processor(Settings());
+
+        Run(p, Pad(DualSenseButtons.R3), 1.0);
+        Run(p, Pad(), 1.01);
+        Assert.Equal(DualSenseButtons.Square, Run(p, Pad(), 1.05).Out.Buttons);
+
+        // Changement de profil : la macro en bascule ne survit pas
+        p.Settings = Settings();
+        Assert.Equal(DualSenseButtons.None, Run(p, Pad(), 1.1).Out.Buttons);
+
+        // Avec les nouveaux réglages : relancée par un appui, arrêtée par le suivant
+        Run(p, Pad(DualSenseButtons.R3), 2.0);
+        Run(p, Pad(), 2.01);
+        Assert.Equal(DualSenseButtons.Square, Run(p, Pad(), 2.05).Out.Buttons);
+        Run(p, Pad(DualSenseButtons.R3), 2.1);
+        Run(p, Pad(), 2.11);
+        Assert.Equal(DualSenseButtons.None, Run(p, Pad(), 2.15).Out.Buttons);
+    }
+
+    [Fact]
     public void Touch_zone_click_becomes_zone_button_or_stays_touchpad()
     {
         var right = new TouchPoint(true, 1, 1700, 300);
